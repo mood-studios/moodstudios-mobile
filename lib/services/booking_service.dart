@@ -1,10 +1,26 @@
 import '../core/network/api_client.dart';
 import '../models/booking_model.dart';
+import '../models/time_slot.dart';
 
 class BookingService {
   BookingService(this._client);
 
   final ApiClient _client;
+
+  Future<List<TimeSlot>> getAvailability({
+    required DateTime date,
+    required int durationMinutes,
+  }) async {
+    final dateStr =
+        '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    final res = await _client.dio.get('/bookings/availability', queryParameters: {
+      'date': dateStr,
+      'durationMinutes': durationMinutes,
+    });
+    final data = res.data['data'] as Map<String, dynamic>;
+    final slots = data['slots'] as List;
+    return slots.map((e) => TimeSlot.fromJson(e as Map<String, dynamic>)).toList();
+  }
 
   Future<BookingModel> createBooking({
     required List<String> serviceIds,

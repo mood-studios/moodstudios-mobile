@@ -45,14 +45,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     }
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
+  Color _statusColor(String key) {
+    switch (key) {
+      case 'paid':
       case 'confirmed':
         return Colors.green;
       case 'declined':
+      case 'failed':
         return Colors.red;
       case 'completed':
         return AppColors.purple;
+      case 'payment_pending':
+        return Colors.amber.shade800;
       default:
         return Colors.orange;
     }
@@ -93,12 +97,16 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _statusColor(b.bookingStatus).withValues(alpha: 0.15),
+                      color: _statusColor(b.statusLabelKey).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      b.bookingStatus,
-                      style: TextStyle(fontSize: 11, color: _statusColor(b.bookingStatus), fontWeight: FontWeight.w600),
+                      b.statusLabel,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _statusColor(b.statusLabelKey),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),

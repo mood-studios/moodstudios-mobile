@@ -44,6 +44,27 @@ class BookingModel {
   }
 
   bool get isPaid => paymentStatus == 'paid';
+
+  /// Customer-facing status for list badges (payment + session).
+  String get statusLabel {
+    if (bookingStatus == 'declined') return 'Declined';
+    if (bookingStatus == 'completed') return 'Completed';
+    if (paymentStatus == 'paid') {
+      return bookingStatus == 'confirmed' ? 'Confirmed' : 'Paid';
+    }
+    if (paymentStatus == 'pending') return 'Payment pending';
+    if (paymentStatus == 'failed') return 'Payment failed';
+    return 'Awaiting payment';
+  }
+
+  String get statusLabelKey {
+    if (bookingStatus == 'declined') return 'declined';
+    if (bookingStatus == 'completed') return 'completed';
+    if (paymentStatus == 'paid') return 'paid';
+    if (paymentStatus == 'pending') return 'payment_pending';
+    if (paymentStatus == 'failed') return 'failed';
+    return 'awaiting_payment';
+  }
 }
 
 class BookingServiceItem {

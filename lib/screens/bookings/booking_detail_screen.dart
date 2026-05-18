@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
+import '../../services/payment_service.dart';
 import '../gallery/gallery_screen.dart';
+import 'payment_checkout_screen.dart';
 
 class BookingDetailScreen extends StatefulWidget {
   const BookingDetailScreen({super.key, required this.bookingId});
@@ -29,10 +31,12 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   Future<void> _load() async {
     try {
       final b = await context.read<BookingService>().getBooking(widget.bookingId);
-      if (mounted) setState(() {
-        _booking = b;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _booking = b;
+          _loading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
@@ -44,23 +48,43 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   Future<void> _pay() async {
     setState(() => _paying = true);
     try {
-      final result = await context.read<BookingService>().createPayment(widget.bookingId);
+      final session = await context.read<PaymentService>().startPayment(widget.bookingId);
       if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Payment initiated'),
-          content: Text(
-            'Use PayMongo client key in production.\n\nIntent: ${result['paymentIntentId'] ?? 'mock'}',
+
+      final paid = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentCheckoutScreen(
+            session: session,
+            onComplete: () {},
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
         ),
       );
-      await _load();
+
+      if (paid == true) {
+        await _load();
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        );
+      }
     } finally {
       if (mounted) setState(() => _paying = false);
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'paid':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'failed':
+        return Colors.red;
+      default:
+        return AppColors.muted;
     }
   }
 
@@ -70,26 +94,86 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.purple)));
     }
     final b = _booking!;
+    final currency = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Booking Details')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        title: const Text('Booking Details'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _row('Date', DateFormat.yMMMMd().format(b.bookingDate)),
-          _row('Time', b.bookingTime),
-          _row('Status', b.bookingStatus),
-          _row('Payment', b.paymentStatus),
-          _row('Total', '₱${b.totalAmount.toStringAsFixed(0)}'),
-          if (b.specialRequest != null && b.specialRequest!.isNotEmpty) _row('Request', b.specialRequest!),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                _row('Date', DateFormat.yMMMMd().format(b.bookingDate)),
+                _row('Time', b.bookingTime),
+                _row('Status', b.statusLabel),
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 100,
+                      child: Text('Payment', style: TextStyle(color: AppColors.muted)),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _statusColor(b.paymentStatus).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        b.paymentStatus,
+                        style: TextStyle(
+                          color: _statusColor(b.paymentStatus),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                _row('Total', currency.format(b.totalAmount)),
+                if (b.specialRequest != null && b.specialRequest!.isNotEmpty)
+                  _row('Request', b.specialRequest!),
+              ],
+            ),
+          ),
           const SizedBox(height: 16),
           const Text('Services', style: TextStyle(fontWeight: FontWeight.w600)),
-          ...b.services.map((s) => ListTile(title: Text(s.name), trailing: Text('₱${s.price.toStringAsFixed(0)}'))),
+          const SizedBox(height: 8),
+          ...b.services.map(
+            (s) => Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                title: Text(s.name),
+                trailing: Text(currency.format(s.price)),
+              ),
+            ),
+          ),
           const SizedBox(height: 24),
           if (!b.isPaid && b.bookingStatus != 'declined')
-            ElevatedButton(
-              onPressed: _paying ? null : _pay,
-              child: Text(_paying ? 'Processing...' : 'Pay now'),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: _paying ? null : _pay,
+                icon: _paying
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.payment),
+                label: Text(_paying ? 'Preparing checkout...' : 'Pay now'),
+              ),
             ),
+          const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: () => Navigator.push(
               context,

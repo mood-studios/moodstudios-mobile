@@ -9,6 +9,7 @@ import 'providers/settings_provider.dart';
 import 'services/auth_service.dart';
 import 'services/user_service.dart';
 import 'services/booking_service.dart';
+import 'services/payment_service.dart';
 import 'services/catalog_service.dart';
 import 'services/chat_service.dart';
 import 'services/gallery_service.dart';
@@ -29,6 +30,7 @@ class MoodStudiosApp extends StatelessWidget {
         Provider<AuthService>(create: (_) => AuthService(apiClient, storage)),
         Provider<CatalogService>(create: (_) => CatalogService(apiClient)),
         Provider<BookingService>(create: (_) => BookingService(apiClient)),
+        Provider<PaymentService>(create: (_) => PaymentService(apiClient)),
         Provider<GalleryService>(create: (_) => GalleryService(apiClient)),
         Provider<ChatService>(create: (_) => ChatService(apiClient)),
         Provider<NotificationService>(create: (_) => NotificationService(apiClient)),
