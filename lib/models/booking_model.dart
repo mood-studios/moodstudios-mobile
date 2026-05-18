@@ -1,0 +1,63 @@
+class BookingModel {
+  final String id;
+  final String userId;
+  final List<BookingServiceItem> services;
+  final DateTime bookingDate;
+  final String bookingTime;
+  final String? specialRequest;
+  final double totalAmount;
+  final String paymentStatus;
+  final String bookingStatus;
+  final DateTime? createdAt;
+
+  const BookingModel({
+    required this.id,
+    required this.userId,
+    required this.services,
+    required this.bookingDate,
+    required this.bookingTime,
+    this.specialRequest,
+    required this.totalAmount,
+    required this.paymentStatus,
+    required this.bookingStatus,
+    this.createdAt,
+  });
+
+  factory BookingModel.fromJson(Map<String, dynamic> json) {
+    final servicesList = (json['services'] as List?) ?? [];
+    return BookingModel(
+      id: json['_id']?.toString() ?? '',
+      userId: json['userId'] is Map
+          ? json['userId']['_id']?.toString() ?? ''
+          : json['userId']?.toString() ?? '',
+      services: servicesList
+          .map((s) => BookingServiceItem.fromJson(s as Map<String, dynamic>))
+          .toList(),
+      bookingDate: DateTime.tryParse(json['bookingDate']?.toString() ?? '') ?? DateTime.now(),
+      bookingTime: json['bookingTime']?.toString() ?? '',
+      specialRequest: json['specialRequest']?.toString(),
+      totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0,
+      paymentStatus: json['paymentStatus']?.toString() ?? 'unpaid',
+      bookingStatus: json['bookingStatus']?.toString() ?? 'pending',
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+    );
+  }
+
+  bool get isPaid => paymentStatus == 'paid';
+}
+
+class BookingServiceItem {
+  final String id;
+  final String name;
+  final double price;
+
+  const BookingServiceItem({required this.id, required this.name, required this.price});
+
+  factory BookingServiceItem.fromJson(Map<String, dynamic> json) {
+    return BookingServiceItem(
+      id: json['_id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Service',
+      price: (json['price'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
