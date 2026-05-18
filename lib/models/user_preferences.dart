@@ -51,7 +51,7 @@ class UserPreferences {
   const UserPreferences({
     this.notifications = const NotificationPreferences(),
     this.emailDigest = true,
-    this.theme = 'system',
+    this.theme = 'light',
     this.language = 'en',
   });
 
@@ -62,7 +62,7 @@ class UserPreferences {
         json['notifications'] as Map<String, dynamic>?,
       ),
       emailDigest: json['emailDigest'] != false,
-      theme: json['theme']?.toString() ?? 'system',
+      theme: json['theme']?.toString() ?? 'light',
       language: json['language']?.toString() ?? 'en',
     );
   }

@@ -19,10 +19,11 @@ class SettingsProvider extends ChangeNotifier {
     switch (_preferences.theme) {
       case 'dark':
         return ThemeMode.dark;
-      case 'light':
-        return ThemeMode.light;
-      default:
+      case 'system':
         return ThemeMode.system;
+      case 'light':
+      default:
+        return ThemeMode.light;
     }
   }
 
