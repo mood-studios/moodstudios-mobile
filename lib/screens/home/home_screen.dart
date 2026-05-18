@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/dashboard_card.dart';
-import '../../widgets/mood_scaffold.dart';
+import '../../widgets/mood_bottom_nav.dart';
+import '../../widgets/mood_logo.dart';
 import '../auth/login_screen.dart';
 import '../bookings/my_bookings_screen.dart';
 import '../chat/chat_screen.dart';
@@ -10,25 +11,32 @@ import '../gallery/gallery_hub_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/profile_hub_screen.dart';
 import '../services/services_screen.dart';
-
-enum HomeTab { book, gallery, upcoming, profile }
+import 'home_dashboard_tab.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.initialTab = HomeTab.book});
+  const HomeScreen({super.key, this.initialIndex = 0});
 
-  final HomeTab initialTab;
+  final int initialIndex;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late HomeTab _tab;
+  static const _navItems = [
+    MoodNavItem(icon: Icons.home_outlined, label: 'Home'),
+    MoodNavItem(icon: Icons.camera_alt_outlined, label: 'Book'),
+    MoodNavItem(icon: Icons.photo_library_outlined, label: 'Gallery'),
+    MoodNavItem(icon: Icons.history, label: 'Bookings'),
+    MoodNavItem(icon: Icons.person_outline, label: 'Profile'),
+  ];
+
+  late int _index;
 
   @override
   void initState() {
     super.initState();
-    _tab = widget.initialTab;
+    _index = widget.initialIndex.clamp(0, _navItems.length - 1);
   }
 
   Future<void> _logout() async {
@@ -53,96 +61,72 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _goTo(int index) => setState(() => _index = index);
+
+  Widget _navPad(Widget child) => Padding(
+        padding: const EdgeInsets.only(bottom: 88),
+        child: child,
+      );
+
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
-
-    return MoodScaffold(
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_outlined),
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-          ),
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      extendBody: true,
+      appBar: AppBar(
+        toolbarHeight: 72,
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: const Padding(
+          padding: EdgeInsets.only(left: 12),
+          child: MoodLogo(size: 40),
         ),
-        IconButton(
-          icon: const Icon(Icons.chat_bubble_outline),
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ChatScreen()),
-          ),
+        leadingWidth: 56,
+        title: const Text(
+          'Mood Studios',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.text),
         ),
-        IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
-      ],
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-            child: Text(
-              'Hello, ${user?.name.split(' ').first ?? 'there'}',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, color: AppColors.text),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
             ),
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 130,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                DashboardCard(
-                  title: 'Book Session',
-                  subtitle: 'Schedule your next shoot',
-                  icon: Icons.camera_alt,
-                  active: _tab == HomeTab.book,
-                  onTap: () => setState(() => _tab = HomeTab.book),
-                ),
-                const SizedBox(width: 10),
-                DashboardCard(
-                  title: 'My Gallery',
-                  subtitle: 'View your photos',
-                  icon: Icons.photo_library_outlined,
-                  active: _tab == HomeTab.gallery,
-                  onTap: () => setState(() => _tab = HomeTab.gallery),
-                ),
-                const SizedBox(width: 10),
-                DashboardCard(
-                  title: 'Upcoming',
-                  subtitle: 'Your bookings',
-                  icon: Icons.event,
-                  active: _tab == HomeTab.upcoming,
-                  onTap: () => setState(() => _tab = HomeTab.upcoming),
-                ),
-                const SizedBox(width: 10),
-                DashboardCard(
-                  title: 'Profile',
-                  subtitle: 'Edit your details',
-                  icon: Icons.person_outline,
-                  active: _tab == HomeTab.profile,
-                  onTap: () => setState(() => _tab = HomeTab.profile),
-                ),
-              ],
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline, color: AppColors.text),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChatScreen()),
             ),
           ),
-          const SizedBox(height: 8),
-          Expanded(child: _buildBody()),
+          IconButton(
+            icon: const Icon(Icons.logout, color: AppColors.muted),
+            onPressed: _logout,
+          ),
         ],
       ),
+      body: IndexedStack(
+        index: _index,
+        children: [
+          HomeDashboardTab(
+            onOpenBook: () => _goTo(1),
+            onOpenGallery: () => _goTo(2),
+            onOpenBookings: () => _goTo(3),
+          ),
+          _navPad(const ServicesScreen(embedded: true)),
+          _navPad(const GalleryHubScreen(embedded: true)),
+          _navPad(const MyBookingsScreen(embedded: true)),
+          _navPad(const ProfileHubScreen(embedded: true)),
+        ],
+      ),
+      bottomNavigationBar: MoodBottomNav(
+        currentIndex: _index,
+        onTap: _goTo,
+        items: _navItems,
+      ),
     );
-  }
-
-  Widget _buildBody() {
-    switch (_tab) {
-      case HomeTab.book:
-        return const ServicesScreen(embedded: true);
-      case HomeTab.gallery:
-        return const GalleryHubScreen(embedded: true);
-      case HomeTab.upcoming:
-        return const MyBookingsScreen(embedded: true);
-      case HomeTab.profile:
-        return const ProfileHubScreen(embedded: true);
-    }
   }
 }

@@ -61,7 +61,7 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
       );
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen(initialTab: HomeTab.upcoming)),
+        MaterialPageRoute(builder: (_) => const HomeScreen(initialIndex: 3)),
         (_) => false,
       );
     } catch (e) {
