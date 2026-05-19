@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
+import '../core/push/push_notifications.dart';
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/mood_logo.dart';
@@ -27,8 +28,12 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
     final auth = context.read<AuthProvider>();
     await auth.init();
+    if (!mounted) return;
     if (auth.user != null) {
       context.read<SettingsProvider>().applyFromUser(auth.user!.preferences);
+    }
+    if (auth.isAuthenticated) {
+      await PushNotifications.syncWhenAuthenticated(context);
     }
     if (!mounted) return;
     Navigator.pushReplacement(

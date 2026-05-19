@@ -73,6 +73,80 @@ lib/
 └── widgets/
 ```
 
+## Push notifications (phone alerts)
+
+The app registers an **FCM device token** after login and the backend sends pushes for bookings, payments, and chat (when configured).
+
+### 1. Firebase project
+
+1. Create a project at [Firebase Console](https://console.firebase.google.com/).
+2. Add an **Android** app with package name `com.moodstudios.mood_studios_mobile`.
+3. Add an **iOS** app with bundle ID `com.moodstudios.moodStudiosMobile` (if you ship on iOS).
+4. Download config files (or use FlutterFire CLI below).
+
+### 2. FlutterFire (recommended)
+
+**Prerequisites**
+
+1. Install Firebase CLI (if needed): `npm install -g firebase-tools`
+2. Log in (required — fixes “Failed to authenticate”):
+
+```bash
+firebase login
+```
+
+A browser window opens; sign in with the Google account that owns project **mood-studios-3172f**.
+
+**Configure the app** — from `mobile_app/`:
+
+```bash
+dart pub global activate flutterfire_cli
+```
+
+On Windows, `flutterfire` may not be on your PATH. Use either:
+
+```powershell
+# Option A — add Pub to PATH for this terminal session
+$env:Path = "$env:LOCALAPPDATA\Pub\Cache\bin;" + $env:Path
+flutterfire configure --project=mood-studios-3172f
+```
+
+```powershell
+# Option B — always works without PATH
+dart pub global run flutterfire_cli:flutterfire configure --project=mood-studios-3172f
+```
+
+When prompted to **create a new Firebase project**, choose **no** — you already have `mood-studios-3172f`.
+
+This updates `lib/firebase_options.dart` and places `android/app/google-services.json` (and iOS plist).
+
+**Verify login:** `firebase projects:list` should list `mood-studios-3172f`.
+
+### 3. Backend (FCM HTTP v1)
+
+Your Firebase project uses **FCM API (V1)** enabled and **Legacy disabled** — that is correct.
+
+The API does **not** use a legacy server key. In `backend/.env` set:
+
+| Variable | Description |
+|----------|-------------|
+| `FIREBASE_PROJECT_ID` | `mood-studios-3172f` |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON (local dev) |
+
+**Get the JSON:** Firebase Console → ⚙️ Project settings → **Service accounts** → **Generate new private key** → save as `backend/firebase-service-account.json` (gitignored).
+
+**Render:** copy the JSON into one line as `FIREBASE_SERVICE_ACCOUNT_JSON` (see `backend/.env.example`).
+
+Without credentials, notifications are still saved in the database; the API logs `[MOCK FCM v1]` in development instead of pushing.
+
+### 4. Run on a real device
+
+- Use a **physical phone** or an emulator with **Google Play** image (FCM does not work on all emulator images).
+- After login, allow notification permission when prompted.
+- Toggle categories under **Profile → Preferences → Push notifications**.
+
+Until Firebase is configured, the app runs normally; only system push is disabled (in-app notification list still works).
+
 ## Notes
 
 - OTP appears in the backend console in development (`[MOCK OTP]`).

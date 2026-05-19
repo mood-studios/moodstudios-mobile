@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../core/push/push_notification_service.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
@@ -11,24 +12,30 @@ class AuthProvider extends ChangeNotifier {
   bool _loading = false;
   String? _error;
   String? _pendingEmail;
+  bool _needsVerification = false;
 
   UserModel? get user => _user;
-  bool get isAuthenticated => _user != null;
+  bool get isAuthenticated => _user != null && _user!.isVerified;
   bool get loading => _loading;
   String? get error => _error;
   String? get pendingEmail => _pendingEmail;
+  bool get needsVerification => _needsVerification;
 
   Future<void> init() async {
     _loading = true;
     notifyListeners();
     _user = await _authService.restoreSession();
+    _needsVerification = false;
     _loading = false;
     notifyListeners();
   }
 
   Future<bool> login(String email, String password) async {
     return _run(() async {
-      _user = await _authService.login(email, password);
+      final result = await _authService.login(email, password);
+      _user = result.user;
+      _pendingEmail = result.requiresVerification ? email : null;
+      _needsVerification = result.requiresVerification;
     });
   }
 
@@ -39,13 +46,15 @@ class AuthProvider extends ChangeNotifier {
     String? phone,
   }) async {
     return _run(() async {
-      _user = await _authService.register(
+      final result = await _authService.register(
         name: name,
         email: email,
         password: password,
         phone: phone,
       );
-      _pendingEmail = email;
+      _user = null;
+      _pendingEmail = result.registeredEmail ?? email;
+      _needsVerification = true;
     });
   }
 
@@ -53,6 +62,7 @@ class AuthProvider extends ChangeNotifier {
     return _run(() async {
       _user = await _authService.verifyOtp(email, otp);
       _pendingEmail = null;
+      _needsVerification = false;
     });
   }
 
@@ -80,9 +90,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await PushNotificationService.instance.unregister();
     await _authService.logout();
     _user = null;
     _pendingEmail = null;
+    _needsVerification = false;
     notifyListeners();
   }
 

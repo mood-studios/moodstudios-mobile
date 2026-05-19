@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/auth_messages.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import 'otp_screen.dart';
@@ -38,9 +39,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
     if (!mounted) return;
     if (ok) {
+      final email = _email.text.trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AuthMessages.codeSentTo(email))),
+      );
+      if (!mounted) return;
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => OtpScreen(email: _email.text.trim())),
+        MaterialPageRoute(builder: (_) => OtpScreen(email: email)),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(auth.error ?? 'Registration failed')));
@@ -82,7 +88,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _password,
                 obscureText: true,
                 decoration: const InputDecoration(labelText: 'Password'),
-                validator: (v) => v != null && v.length >= 6 ? null : 'Min 6 characters',
+                validator: (v) => v != null && v.length >= 8 ? null : 'Min 8 characters',
               ),
               const SizedBox(height: 24),
               SizedBox(

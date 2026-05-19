@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../core/theme/app_colors.dart';
 
 class MoodLogo extends StatelessWidget {
   const MoodLogo({super.key, this.size = 72});
@@ -8,21 +7,14 @@ class MoodLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: AppColors.purple,
-        borderRadius: BorderRadius.circular(size * 0.14),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.purple.withValues(alpha: 0.35),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.14),
+      child: Image.asset(
+        'assets/images/mood_logo.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
       ),
-      child: Icon(Icons.camera_alt_rounded, color: Colors.white, size: size * 0.5),
     );
   }
 }

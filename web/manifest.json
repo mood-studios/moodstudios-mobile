@@ -1,11 +1,11 @@
 {
-    "name": "mood_studios_mobile",
-    "short_name": "mood_studios_mobile",
+    "name": "Mood Studios",
+    "short_name": "Mood Studios",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Mood Studios — Photography booking & client app",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

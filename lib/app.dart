@@ -14,13 +14,17 @@ import 'services/catalog_service.dart';
 import 'services/chat_service.dart';
 import 'services/gallery_service.dart';
 import 'services/notification_service.dart';
+import 'core/push/push_notification_service.dart';
 import 'screens/splash_screen.dart';
+
+final appNavigatorKey = GlobalKey<NavigatorState>();
 
 class MoodStudiosApp extends StatelessWidget {
   const MoodStudiosApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    PushNotificationService.instance.bindNavigator(appNavigatorKey);
     final storage = AuthStorage();
     final apiClient = ApiClient(storage);
 
@@ -42,6 +46,7 @@ class MoodStudiosApp extends StatelessWidget {
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {
           return MaterialApp(
+            navigatorKey: appNavigatorKey,
             title: 'Mood Studios',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light,

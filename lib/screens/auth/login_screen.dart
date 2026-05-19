@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/push/push_notifications.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/mood_logo.dart';
 import '../home/home_screen.dart';
+import 'otp_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -33,10 +35,20 @@ class _LoginScreenState extends State<LoginScreen> {
     final ok = await auth.login(_email.text.trim(), _password.text);
     if (!mounted) return;
     if (ok) {
+      if (auth.needsVerification) {
+        final email = _email.text.trim();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => OtpScreen(email: email)),
+        );
+        return;
+      }
       final user = auth.user;
       if (user != null) {
         context.read<SettingsProvider>().applyFromUser(user.preferences);
       }
+      await PushNotifications.syncWhenAuthenticated(context);
+      if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(auth.error ?? 'Login failed')));

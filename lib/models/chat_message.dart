@@ -15,6 +15,24 @@ class ChatMessage {
     required this.createdAt,
   });
 
+  bool get isTemporary => id.startsWith('temp-');
+
+  factory ChatMessage.optimistic({
+    required String senderId,
+    required String senderName,
+    required String message,
+    String roomId = '',
+  }) {
+    return ChatMessage(
+      id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
+      roomId: roomId,
+      senderId: senderId,
+      senderName: senderName,
+      message: message,
+      createdAt: DateTime.now(),
+    );
+  }
+
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     final sender = json['senderId'];
     return ChatMessage(

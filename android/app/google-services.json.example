@@ -1,0 +1,19 @@
+{
+  "_comment": "Download from Firebase Console → Project settings → Your apps → Android app. Save as google-services.json in this folder (same level as this file).",
+  "project_info": {
+    "project_number": "YOUR_PROJECT_NUMBER",
+    "project_id": "YOUR_PROJECT_ID"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "YOUR_ANDROID_APP_ID",
+        "android_client_info": {
+          "package_name": "com.moodstudios.mood_studios_mobile"
+        }
+      },
+      "api_key": [{ "current_key": "YOUR_ANDROID_API_KEY" }]
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -2,33 +2,56 @@ import '../core/network/api_client.dart';
 import '../core/storage/auth_storage.dart';
 import '../models/user_model.dart';
 
+class AuthResult {
+  const AuthResult({
+    this.user,
+    this.requiresVerification = false,
+    this.registeredEmail,
+  });
+
+  final UserModel? user;
+  final bool requiresVerification;
+  final String? registeredEmail;
+}
+
 class AuthService {
   AuthService(this._client, this._storage);
 
   final ApiClient _client;
   final AuthStorage _storage;
 
-  Future<UserModel> login(String email, String password) async {
+  Future<AuthResult> login(String email, String password) async {
     final res = await _client.dio.post('/auth/login', data: {
       'email': email,
       'password': password,
     });
-    return _saveAuthResponse(res.data as Map<String, dynamic>);
+    final body = res.data as Map<String, dynamic>;
+    final data = body['data'] as Map<String, dynamic>? ?? {};
+    final requiresVerification =
+        data['requiresVerification'] == true || data['isVerified'] != true;
+
+    if (requiresVerification && data['token'] != null) {
+      final user = await _saveAuthResponse(body);
+      return AuthResult(user: user, requiresVerification: true);
+    }
+
+    final user = await _saveAuthResponse(body);
+    return AuthResult(user: user, requiresVerification: !user.isVerified);
   }
 
-  Future<UserModel> register({
+  Future<AuthResult> register({
     required String name,
     required String email,
     required String password,
     String? phone,
   }) async {
-    final res = await _client.dio.post('/auth/register', data: {
+    await _client.dio.post('/auth/register', data: {
       'name': name,
       'email': email,
       'password': password,
       if (phone != null && phone.isNotEmpty) 'phone': phone,
     });
-    return _saveAuthResponse(res.data as Map<String, dynamic>);
+    return AuthResult(requiresVerification: true, registeredEmail: email);
   }
 
   Future<UserModel> verifyOtp(String email, String otp) async {
@@ -69,6 +92,7 @@ class AuthService {
     final token = await _storage.getToken();
     final user = await _storage.getUser();
     if (token == null || user == null) return null;
+    if (!user.isVerified) return null;
     return user;
   }
 
@@ -76,7 +100,9 @@ class AuthService {
     final data = body['data'] as Map<String, dynamic>;
     final token = data['token']?.toString() ?? '';
     final user = UserModel.fromJson(data);
-    await _storage.saveSession(token, user);
+    if (token.isNotEmpty) {
+      await _storage.saveSession(token, user);
+    }
     return user;
   }
 }
