@@ -120,7 +120,18 @@ When prompted to **create a new Firebase project**, choose **no** — you alread
 
 This updates `lib/firebase_options.dart` and places `android/app/google-services.json` (and iOS plist).
 
+Those files are **gitignored** (only `*.example` templates are in the repo). Each developer runs `flutterfire configure` locally after cloning.
+
 **Verify login:** `firebase projects:list` should list `mood-studios-3172f`.
+
+#### If GitHub flagged a leaked API key
+
+1. [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials?project=mood-studios-3172f) — restrict then **rotate/delete** the exposed Browser/Android/iOS keys.
+2. Re-run `flutterfire configure --project=mood-studios-3172f` in `mobile_app/`.
+3. Commit only non-secret changes (`.gitignore`, docs). Do **not** commit `firebase_options.dart` or `google-services.json`.
+4. Close the GitHub secret scanning alert as **Revoked**.
+
+Removing files from git does not erase them from **history**; rotation is what invalidates the leaked key.
 
 ### 3. Backend (FCM HTTP v1)
 
