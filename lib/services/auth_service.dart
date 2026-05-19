@@ -27,11 +27,13 @@ class AuthService {
     });
     final body = res.data as Map<String, dynamic>;
     final data = body['data'] as Map<String, dynamic>? ?? {};
-    final requiresVerification =
-        data['requiresVerification'] == true || data['isVerified'] != true;
+    final requiresVerification = data['requiresVerification'] == true;
 
-    if (requiresVerification && data['token'] != null) {
-      final user = await _saveAuthResponse(body);
+    if (requiresVerification) {
+      UserModel? user;
+      if (data['token'] != null) {
+        user = await _saveAuthResponse(body);
+      }
       return AuthResult(user: user, requiresVerification: true);
     }
 
@@ -39,19 +41,30 @@ class AuthService {
     return AuthResult(user: user, requiresVerification: !user.isVerified);
   }
 
-  Future<AuthResult> register({
+  Future<void> sendSignupOtp(String email) async {
+    await _client.dio.post('/auth/send-signup-otp', data: {'email': email});
+  }
+
+  Future<void> verifySignupOtp(String email, String otp) async {
+    await _client.dio.post('/auth/verify-signup-otp', data: {
+      'email': email,
+      'otp': otp,
+    });
+  }
+
+  Future<UserModel> register({
     required String name,
     required String email,
     required String password,
     String? phone,
   }) async {
-    await _client.dio.post('/auth/register', data: {
+    final res = await _client.dio.post('/auth/register', data: {
       'name': name,
       'email': email,
       'password': password,
       if (phone != null && phone.isNotEmpty) 'phone': phone,
     });
-    return AuthResult(requiresVerification: true, registeredEmail: email);
+    return _saveAuthResponse(res.data as Map<String, dynamic>);
   }
 
   Future<UserModel> verifyOtp(String email, String otp) async {

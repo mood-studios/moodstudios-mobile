@@ -39,6 +39,18 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
+  Future<bool> sendSignupOtp(String email) async {
+    return _run(() async {
+      await _authService.sendSignupOtp(email);
+    });
+  }
+
+  Future<bool> verifySignupEmail(String email, String otp) async {
+    return _run(() async {
+      await _authService.verifySignupOtp(email, otp);
+    });
+  }
+
   Future<bool> register({
     required String name,
     required String email,
@@ -46,15 +58,14 @@ class AuthProvider extends ChangeNotifier {
     String? phone,
   }) async {
     return _run(() async {
-      final result = await _authService.register(
+      _user = await _authService.register(
         name: name,
         email: email,
         password: password,
         phone: phone,
       );
-      _user = null;
-      _pendingEmail = result.registeredEmail ?? email;
-      _needsVerification = true;
+      _pendingEmail = null;
+      _needsVerification = false;
     });
   }
 
