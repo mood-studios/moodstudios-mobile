@@ -28,30 +28,17 @@ flutter pub get
 
 ### Backend URL
 
-**Local (debug default):** with `npm run dev` in `backend/` (port 5000), run:
+All builds use the Render API:
+
+- API: `https://moodstudios-backend.onrender.com/api`
+- Socket: `https://moodstudios-backend.onrender.com`
 
 ```bash
 cd mobile_app
 flutter run
 ```
 
-The app uses:
-
-| Platform | API URL |
-|----------|---------|
-| Android emulator | `http://10.0.2.2:5000/api` |
-| Windows / iOS simulator / desktop | `http://127.0.0.1:5000/api` |
-| Physical phone (same Wi‑Fi) | Your PC’s LAN IP, e.g. `http://192.168.1.10:5000/api` |
-
-```bash
-flutter run --dart-define=API_BASE_URL=http://192.168.1.10:5000/api --dart-define=SOCKET_URL=http://192.168.1.10:5000
-```
-
-**Production (release builds):** `https://moodstudios-backend.onrender.com`
-
-To hit Render while debugging: `flutter run --dart-define=FORCE_PRODUCTION=true`
-
-Health check (local): http://127.0.0.1:5000/api/health
+Health check: https://moodstudios-backend.onrender.com/api/health
 
 > Render free tier may sleep after inactivity; the first request can take ~30s to wake up.
 
