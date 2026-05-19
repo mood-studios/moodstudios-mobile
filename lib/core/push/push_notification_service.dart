@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -61,10 +63,12 @@ class PushNotificationService {
     }
 
     try {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).timeout(
+        const Duration(seconds: 15),
+      );
       _messaging = FirebaseMessaging.instance;
-      await _setupLocalNotifications();
-      await _requestPermission();
+      await _setupLocalNotifications().timeout(const Duration(seconds: 10));
+      await _requestPermission().timeout(const Duration(seconds: 15));
       _listenMessages();
       _firebaseReady = true;
       return true;
@@ -80,7 +84,9 @@ class PushNotificationService {
     if (!_firebaseReady || _messaging == null) return;
     _apiClient = client;
 
-    final token = await _messaging!.getToken();
+    final token = await _messaging!
+        .getToken()
+        .timeout(const Duration(seconds: 12), onTimeout: () => null);
     if (token != null) {
       await _uploadToken(token);
     }
@@ -107,7 +113,9 @@ class PushNotificationService {
     final client = _apiClient;
     if (client == null || token.isEmpty) return;
     try {
-      await client.dio.put('/users/profile', data: {'fcmToken': token});
+      await client.dio
+          .put('/users/profile', data: {'fcmToken': token})
+          .timeout(const Duration(seconds: 15));
       if (kDebugMode) debugPrint('[Push] FCM token registered with backend');
     } catch (e) {
       if (kDebugMode) debugPrint('[Push] token upload failed: $e');

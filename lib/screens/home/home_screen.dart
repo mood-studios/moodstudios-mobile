@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/push/push_notifications.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/mood_bottom_nav.dart';
@@ -37,6 +38,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _index = widget.initialIndex.clamp(0, _navItems.length - 1);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      PushNotifications.syncWhenAuthenticated(context);
+    });
   }
 
   Future<void> _logout() async {

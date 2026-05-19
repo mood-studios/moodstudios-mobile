@@ -108,7 +108,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString().replaceFirst('Exception: ', '');
+      _error = _messageFromError(e);
       _loading = false;
       notifyListeners();
       return false;
@@ -118,5 +118,14 @@ class AuthProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  static String _messageFromError(Object e) {
+    final text = e.toString();
+    const prefix = 'DioException [bad response]: ';
+    if (text.startsWith(prefix)) {
+      return text.substring(prefix.length);
+    }
+    return text.replaceFirst('Exception: ', '');
   }
 }

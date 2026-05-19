@@ -9,7 +9,11 @@ class ApiClient {
         baseUrl: ApiConfig.baseUrl,
         connectTimeout: const Duration(seconds: 20),
         receiveTimeout: const Duration(seconds: 20),
-        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Mood-Client': 'mobile',
+        },
       ),
     );
 
