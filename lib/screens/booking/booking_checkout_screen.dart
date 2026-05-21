@@ -245,7 +245,7 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: slots.map((slot) {
+                children: slots.where((slot) => slot.available).map((slot) {
                   final selected = schedule.slot?.value == slot.value;
                   return FilterChip(
                     label: Text(slot.time),

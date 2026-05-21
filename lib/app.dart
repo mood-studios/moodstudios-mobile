@@ -47,18 +47,13 @@ class MoodStudiosApp extends StatelessWidget {
           create: (ctx) => NotificationBadgeProvider(ctx.read<NotificationService>()),
         ),
       ],
-      child: Consumer<SettingsProvider>(
-        builder: (context, settings, _) {
-          return MaterialApp(
-            navigatorKey: appNavigatorKey,
-            title: 'Mood Studios',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.light,
-            darkTheme: AppTheme.dark,
-            themeMode: settings.themeMode,
-            home: const SplashScreen(),
-          );
-        },
+      child: MaterialApp(
+        navigatorKey: appNavigatorKey,
+        title: 'Mood Studios',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        themeMode: ThemeMode.light,
+        home: const SplashScreen(),
       ),
     );
   }

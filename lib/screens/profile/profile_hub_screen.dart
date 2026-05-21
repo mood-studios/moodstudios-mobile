@@ -76,7 +76,7 @@ class _ProfileHubScreenState extends State<ProfileHubScreen> {
           _SettingsTile(
             icon: Icons.tune,
             title: 'Preferences',
-            subtitle: 'Notifications, theme, language',
+            subtitle: 'Notification settings',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const PreferencesScreen()),

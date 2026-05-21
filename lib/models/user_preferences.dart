@@ -62,8 +62,8 @@ class UserPreferences {
         json['notifications'] as Map<String, dynamic>?,
       ),
       emailDigest: json['emailDigest'] != false,
-      theme: json['theme']?.toString() ?? 'light',
-      language: json['language']?.toString() ?? 'en',
+      theme: 'light',
+      language: 'en',
     );
   }
 

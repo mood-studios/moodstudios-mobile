@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user_preferences.dart';
 import '../services/user_service.dart';
 
@@ -14,18 +14,6 @@ class SettingsProvider extends ChangeNotifier {
   UserPreferences get preferences => _preferences;
   bool get loading => _loading;
   String? get error => _error;
-
-  ThemeMode get themeMode {
-    switch (_preferences.theme) {
-      case 'dark':
-        return ThemeMode.dark;
-      case 'system':
-        return ThemeMode.system;
-      case 'light':
-      default:
-        return ThemeMode.light;
-    }
-  }
 
   Future<void> loadPreferences() async {
     _loading = true;
@@ -63,9 +51,6 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> setTheme(String theme) =>
-      updatePreferences(_preferences.copyWith(theme: theme));
-
   Future<bool> setNotificationPref({
     bool? booking,
     bool? payment,
@@ -84,7 +69,4 @@ class SettingsProvider extends ChangeNotifier {
           ),
         ),
       );
-
-  Future<bool> setLanguage(String language) =>
-      updatePreferences(_preferences.copyWith(language: language));
 }
