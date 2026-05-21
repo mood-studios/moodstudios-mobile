@@ -28,6 +28,8 @@ class PaymentService {
           0,
       isTestMode: data['isTestMode'] == true,
       linkError: data['linkError']?.toString(),
+      paymentDeadlineAt: DateTime.tryParse(data['paymentDeadlineAt']?.toString() ?? ''),
+      paymentHoldMinutes: (data['paymentHoldMinutes'] as num?)?.toInt() ?? 15,
     );
   }
 
@@ -47,6 +49,8 @@ class PaymentSession {
     this.paymentIntentId,
     this.isTestMode = false,
     this.linkError,
+    this.paymentDeadlineAt,
+    this.paymentHoldMinutes = 15,
   });
 
   final String paymentId;
@@ -55,6 +59,8 @@ class PaymentSession {
   final String? paymentIntentId;
   final bool isTestMode;
   final String? linkError;
+  final DateTime? paymentDeadlineAt;
+  final int paymentHoldMinutes;
 
   bool get hasCheckoutUrl => checkoutUrl != null && checkoutUrl!.isNotEmpty;
 }

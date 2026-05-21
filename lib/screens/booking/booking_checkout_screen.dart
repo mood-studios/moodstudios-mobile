@@ -21,11 +21,48 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
   bool _submitting = false;
   final Map<String, List<TimeSlot>> _slotsCache = {};
   final Map<String, bool> _slotsLoading = {};
+  Set<String> _blockedDateKeys = {};
+  List<int> _closedWeekdays = [];
 
   @override
   void initState() {
     super.initState();
+    _loadScheduleRules();
     WidgetsBinding.instance.addPostFrameCallback((_) => _preloadSlots());
+  }
+
+  Future<void> _loadScheduleRules() async {
+    final booking = context.read<BookingService>();
+    try {
+      final blocked = await booking.getBlockedDayKeys();
+      final closed = await booking.getClosedWeekdays();
+      if (!mounted) return;
+      setState(() {
+        _blockedDateKeys = blocked;
+        _closedWeekdays = closed;
+      });
+    } catch (_) {
+      /* availability API still enforces rules */
+    }
+  }
+
+  String _dateKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  bool _isDateSelectable(DateTime day) {
+    if (_blockedDateKeys.contains(_dateKey(day))) return false;
+    if (_closedWeekdays.contains(day.weekday % 7)) return false;
+    return true;
+  }
+
+  String? _dateUnavailableMessage(DateTime day) {
+    if (_blockedDateKeys.contains(_dateKey(day))) {
+      return 'This date is not available (studio closed).';
+    }
+    if (_closedWeekdays.contains(day.weekday % 7)) {
+      return 'The studio is closed on this day.';
+    }
+    return null;
   }
 
   @override
@@ -97,8 +134,14 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 90)),
       helpText: 'Date — ${line.service.name}',
+      selectableDayPredicate: _isDateSelectable,
     );
     if (picked == null || !mounted) return;
+    final blockedMsg = _dateUnavailableMessage(picked);
+    if (blockedMsg != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(blockedMsg)));
+      return;
+    }
     final cart = context.read<CartProvider>();
     cart.setSchedule(line.service.id, unitIndex, date: picked);
     await _loadSlots(line, unitIndex);

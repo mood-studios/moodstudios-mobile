@@ -8,6 +8,7 @@ import '../../services/booking_service.dart';
 import 'booking_detail_screen.dart';
 import 'payment_checkout_screen.dart';
 import '../../services/payment_service.dart';
+import '../../widgets/payment_countdown.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key, this.embedded = false});
@@ -220,6 +221,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
+                      if (b.needsPaymentCountdown) ...[
+                        PaymentCountdown(
+                          deadline: b.paymentDeadlineAt!,
+                          compact: true,
+                          onExpired: _load,
+                        ),
+                        const SizedBox(height: 4),
+                      ],
                       Text(
                         '₱${b.totalAmount.toStringAsFixed(0)}',
                         style: const TextStyle(fontWeight: FontWeight.w600),

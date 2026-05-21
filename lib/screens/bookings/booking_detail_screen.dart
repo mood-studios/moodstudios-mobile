@@ -7,6 +7,7 @@ import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
 import '../../services/payment_service.dart';
 import '../gallery/gallery_screen.dart';
+import '../../widgets/payment_countdown.dart';
 import 'payment_checkout_screen.dart';
 
 class BookingDetailScreen extends StatefulWidget {
@@ -196,6 +197,13 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               ),
             ),
           ),
+          if (b.needsPaymentCountdown) ...[
+            const SizedBox(height: 12),
+            PaymentCountdown(
+              deadline: b.paymentDeadlineAt!,
+              onExpired: _load,
+            ),
+          ],
           const SizedBox(height: 24),
           if (!b.isPaid && b.bookingStatus != 'declined')
             SizedBox(

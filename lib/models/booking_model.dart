@@ -9,6 +9,8 @@ class BookingModel {
   final String paymentStatus;
   final String bookingStatus;
   final DateTime? createdAt;
+  final DateTime? paymentDeadlineAt;
+  final int paymentHoldMinutes;
 
   const BookingModel({
     required this.id,
@@ -21,6 +23,8 @@ class BookingModel {
     required this.paymentStatus,
     required this.bookingStatus,
     this.createdAt,
+    this.paymentDeadlineAt,
+    this.paymentHoldMinutes = 15,
   });
 
   factory BookingModel.fromJson(Map<String, dynamic> json) {
@@ -40,10 +44,20 @@ class BookingModel {
       paymentStatus: json['paymentStatus']?.toString() ?? 'unpaid',
       bookingStatus: json['bookingStatus']?.toString() ?? 'pending',
       createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+      paymentDeadlineAt: DateTime.tryParse(json['paymentDeadlineAt']?.toString() ?? ''),
+      paymentHoldMinutes: (json['paymentHoldMinutes'] as num?)?.toInt() ?? 15,
     );
   }
 
   bool get isPaid => paymentStatus == 'paid';
+
+  bool get needsPaymentCountdown =>
+      !isPaid && bookingStatus != 'declined' && paymentDeadlineAt != null;
+
+  bool get isPaymentWindowExpired {
+    if (!needsPaymentCountdown) return false;
+    return DateTime.now().isAfter(paymentDeadlineAt!);
+  }
 
   /// Unpaid bookings still awaiting studio/payment can be cancelled.
   /// - Awaiting payment: no checkout started yet (paymentStatus unpaid).

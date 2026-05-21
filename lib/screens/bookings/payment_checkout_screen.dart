@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../services/payment_service.dart';
+import '../../widgets/payment_countdown.dart';
 
 class PaymentCheckoutScreen extends StatefulWidget {
   const PaymentCheckoutScreen({
@@ -133,6 +134,10 @@ class _PaymentCheckoutScreenState extends State<PaymentCheckoutScreen> {
                 'Checkout link unavailable: ${widget.session.linkError}',
                 style: TextStyle(fontSize: 12, color: Colors.orange.shade800),
               ),
+            ],
+            if (widget.session.paymentDeadlineAt != null) ...[
+              const SizedBox(height: 12),
+              PaymentCountdown(deadline: widget.session.paymentDeadlineAt!),
             ],
             const SizedBox(height: 20),
             if (hasUrl) ...[

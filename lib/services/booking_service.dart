@@ -7,6 +7,19 @@ class BookingService {
 
   final ApiClient _client;
 
+  Future<Set<String>> getBlockedDayKeys() async {
+    final res = await _client.dio.get('/public/blocked-days');
+    final list = res.data['data'] as List? ?? [];
+    return list.map((e) => e.toString()).toSet();
+  }
+
+  Future<List<int>> getClosedWeekdays() async {
+    final res = await _client.dio.get('/public/schedule');
+    final data = res.data['data'] as Map<String, dynamic>? ?? {};
+    final raw = data['closedWeekdays'] as List? ?? [];
+    return raw.map((e) => (e as num).toInt()).toList();
+  }
+
   Future<List<TimeSlot>> getAvailability({
     required DateTime date,
     required int durationMinutes,
