@@ -242,22 +242,35 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 if (b.canCancel)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: OutlinedButton.icon(
-                      onPressed: isCancelling ? null : () => _cancelBooking(b),
-                      icon: isCancelling
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.cancel_outlined, size: 18, color: Colors.redAccent),
-                      label: Text(
-                        isCancelling ? 'Cancelling…' : 'Cancel booking',
-                        style: const TextStyle(color: Colors.redAccent),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.redAccent),
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: isCancelling ? null : () => _cancelBooking(b),
+                          icon: isCancelling
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.cancel_outlined, size: 18, color: Colors.redAccent),
+                          label: Text(
+                            isCancelling ? 'Cancelling…' : 'Cancel booking',
+                            style: const TextStyle(color: Colors.redAccent),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.redAccent),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          b.statusLabelKey == 'payment_pending'
+                              ? 'Payment pending — you started checkout but did not finish.'
+                              : 'Awaiting payment — not paid yet.',
+                          style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ),
               ],

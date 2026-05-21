@@ -96,7 +96,7 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
       initialDate: line.schedules[unitIndex].date ?? DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 90)),
-      helpText: 'Select session date',
+      helpText: 'Date — ${line.service.name}',
     );
     if (picked == null || !mounted) return;
     final cart = context.read<CartProvider>();

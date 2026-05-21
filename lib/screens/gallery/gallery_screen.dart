@@ -155,38 +155,40 @@ class _GalleryScreenState extends State<GalleryScreen> {
                               return Material(
                                 color: Colors.transparent,
                                 child: InkWell(
-                                onTap: () => _openPhoto(album, pi),
-                                onLongPress: _downloadingPhotoUrl == photo.url
-                                    ? null
-                                    : () => _downloadPhoto(photo, pi + 1),
-                                borderRadius: BorderRadius.circular(12),
-                                child: ClipRRect(
+                                  onTap: () => _openPhoto(album, pi),
+                                  onLongPress: _downloadingPhotoUrl == photo.url
+                                      ? null
+                                      : () => _downloadPhoto(photo, pi + 1),
                                   borderRadius: BorderRadius.circular(12),
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      CachedNetworkImage(
-                                        imageUrl: photo.url,
-                                        fit: BoxFit.cover,
-                                        placeholder: (_, __) =>
-                                            Container(color: AppColors.purplePale),
-                                      ),
-                                      const Align(
-                                        alignment: Alignment.bottomRight,
-                                        child: Padding(
-                                          padding: EdgeInsets.all(6),
-                                          child: Icon(
-                                            Icons.zoom_in,
-                                            color: Colors.white,
-                                            size: 20,
-                                            shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        CachedNetworkImage(
+                                          imageUrl: photo.url,
+                                          fit: BoxFit.cover,
+                                          placeholder: (_, __) =>
+                                              Container(color: AppColors.purplePale),
+                                        ),
+                                        const Align(
+                                          alignment: Alignment.bottomRight,
+                                          child: Padding(
+                                            padding: EdgeInsets.all(6),
+                                            child: Icon(
+                                              Icons.download_outlined,
+                                              color: Colors.white,
+                                              size: 18,
+                                              shadows: [
+                                                Shadow(color: Colors.black54, blurRadius: 4),
+                                              ],
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
                               );
                             },
                           ),
