@@ -1,3 +1,5 @@
+import com.android.build.gradle.internal.api.BaseVariantOutputImpl
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -40,18 +42,6 @@ android {
     }
 }
 
-androidComponents {
-    onVariants { variant ->
-        variant.outputs.forEach { output ->
-            val fileName = when (variant.buildType) {
-                "release" -> "moodstudios.apk"
-                else -> "moodstudios-${variant.buildType}.apk"
-            }
-            output.outputFileName.set(fileName)
-        }
-    }
-}
-
 flutter {
     source = "../.."
 }
@@ -63,4 +53,17 @@ dependencies {
 val googleServicesFile = file("google-services.json")
 if (googleServicesFile.exists()) {
     apply(plugin = "com.google.gms.google-services")
+}
+
+afterEvaluate {
+    android.applicationVariants.configureEach {
+        val variant = this
+        variant.outputs.configureEach {
+            val output = this as BaseVariantOutputImpl
+            output.outputFileName = when (variant.buildType.name) {
+                "release" -> "moodstudios.apk"
+                else -> "moodstudios-${variant.buildType.name}.apk"
+            }
+        }
+    }
 }
