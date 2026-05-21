@@ -8,6 +8,7 @@ import '../../core/validation/form_validators.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/shake_input_shell.dart';
+import '../../widgets/signup_terms.dart';
 import '../home/home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -26,6 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailOtp = TextEditingController();
 
   bool _emailVerified = false;
+  bool _termsAccepted = false;
   bool _obscurePassword = true;
   String? _verifyStatus;
 
@@ -115,6 +117,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  Future<void> _openTerms() async {
+    final accepted = await showSignupTermsDialog(context);
+    if (!mounted) return;
+    if (accepted) setState(() => _termsAccepted = true);
+  }
+
   Future<void> _submit() async {
     final nameErr = FormValidators.validateFullName(_name.text);
     final phoneErr = FormValidators.validatePhone11(_phone.text);
@@ -124,6 +132,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     if (!_formKey.currentState!.validate()) return;
+    if (!_termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please open Terms and Conditions, read them, and tap "I Understand" before signing up.',
+          ),
+        ),
+      );
+      return;
+    }
+
     if (!_emailVerified) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please verify your email before signing up')),
@@ -302,7 +321,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 validator: (v) => v != null && v.length >= 8 ? null : 'Min 8 characters',
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              SignupTermsAgreement(
+                accepted: _termsAccepted,
+                onOpenTerms: _openTerms,
+              ),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
