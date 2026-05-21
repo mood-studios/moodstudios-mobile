@@ -23,9 +23,26 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
   final Map<String, bool> _slotsLoading = {};
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _preloadSlots());
+  }
+
+  @override
   void dispose() {
     _request.dispose();
     super.dispose();
+  }
+
+  void _preloadSlots() {
+    final cart = context.read<CartProvider>();
+    for (final line in cart.lines) {
+      for (var u = 0; u < line.qty; u++) {
+        if (line.schedules[u].date != null) {
+          _loadSlots(line, u);
+        }
+      }
+    }
   }
 
   String _slotKey(String serviceId, int unitIndex) => '$serviceId-$unitIndex';
@@ -44,17 +61,24 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
             durationMinutes: line.service.duration > 0 ? line.service.duration : 60,
           );
       if (!mounted) return;
+      TimeSlot? firstAvailable;
+      for (final s in slots) {
+        if (s.available) {
+          firstAvailable = s;
+          break;
+        }
+      }
+      if (schedule.slot == null && firstAvailable != null) {
+        context.read<CartProvider>().setSchedule(
+              line.service.id,
+              unitIndex,
+              slot: firstAvailable,
+            );
+      }
+      if (!mounted) return;
       setState(() {
         _slotsCache[key] = slots;
         _slotsLoading[key] = false;
-        if (schedule.slot == null) {
-          for (final s in slots) {
-            if (s.available) {
-              schedule.slot = s;
-              break;
-            }
-          }
-        }
       });
     } catch (e) {
       if (mounted) {
@@ -201,7 +225,9 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
     final key = _slotKey(line.service.id, unitIndex);
     final slots = _slotsCache[key] ?? [];
     final loading = _slotsLoading[key] == true;
-    final label = line.qty > 1 ? 'Session ${unitIndex + 1}' : 'Schedule';
+    final label = line.qty > 1
+        ? '${line.service.name} — Session ${unitIndex + 1}'
+        : line.service.name;
 
     return Padding(
       padding: const EdgeInsets.only(top: 12),

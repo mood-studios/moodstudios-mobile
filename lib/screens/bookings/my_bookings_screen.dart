@@ -6,6 +6,8 @@ import '../../core/theme/app_colors.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
 import 'booking_detail_screen.dart';
+import 'payment_checkout_screen.dart';
+import '../../services/payment_service.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key, this.embedded = false});
@@ -98,6 +100,26 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
       }
     } finally {
       if (mounted) setState(() => _cancellingId = null);
+    }
+  }
+
+  Future<void> _payBooking(BookingModel booking) async {
+    try {
+      final session = await context.read<PaymentService>().startPayment(booking.id);
+      if (!mounted) return;
+      final paid = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentCheckoutScreen(session: session, onComplete: () {}),
+        ),
+      );
+      if (paid == true && mounted) await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_friendlyError(e))),
+        );
+      }
     }
   }
 
@@ -205,6 +227,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                     ],
                   ),
                 ),
+                if (!b.isPaid && b.bookingStatus != 'declined')
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _payBooking(b),
+                        icon: const Icon(Icons.payment, size: 18),
+                        label: const Text('Pay now'),
+                      ),
+                    ),
+                  ),
                 if (b.canCancel)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),

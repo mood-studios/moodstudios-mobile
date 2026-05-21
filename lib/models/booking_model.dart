@@ -45,16 +45,15 @@ class BookingModel {
 
   bool get isPaid => paymentStatus == 'paid';
 
-  /// Pending bookings can be cancelled by the customer (not completed/declined).
-  bool get canCancel => bookingStatus == 'pending';
+  /// Unpaid bookings still awaiting studio/payment can be cancelled.
+  /// - Awaiting payment: no checkout started yet (paymentStatus unpaid).
+  /// - Payment pending: checkout started, payment not finished (paymentStatus pending).
+  bool get canCancel => bookingStatus == 'pending' && !isPaid;
 
-  /// Gallery is available for confirmed/completed sessions with completed payment.
-  bool get canViewGallery {
-    final paid = paymentStatus == 'paid';
-    final sessionOk =
-        bookingStatus == 'confirmed' || bookingStatus == 'completed';
-    return paid && sessionOk;
-  }
+  /// Photos only after payment is complete and session is confirmed or done.
+  bool get canViewGallery =>
+      isPaid &&
+      (bookingStatus == 'confirmed' || bookingStatus == 'completed');
 
   /// Customer-facing status for list badges (payment + session).
   String get statusLabel {

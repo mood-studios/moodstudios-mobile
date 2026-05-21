@@ -46,15 +46,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await context.read<NotificationService>().markAsRead(n.id);
     }
     if (!mounted) return;
-    navigateFromNotification(context, n);
-    await _load();
+    Navigator.pop(context);
+    navigateFromNotification(n);
+    refreshNotificationBadge();
   }
+
+  int get _unreadCount => _items.where((n) => !n.isRead).length;
 
   @override
   Widget build(BuildContext context) {
+    final unread = _unreadCount;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(unread > 0 ? 'Notifications ($unread)' : 'Notifications'),
         actions: [
           TextButton(
             onPressed: () async {

@@ -109,8 +109,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 icon: Badge(
                   isLabelVisible: badge.unreadCount > 0,
+                  backgroundColor: AppColors.purple,
                   label: Text(
                     badge.unreadCount > 99 ? '99+' : '${badge.unreadCount}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   child: const Icon(Icons.notifications_outlined, color: AppColors.text),
                 ),

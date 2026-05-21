@@ -236,6 +236,16 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                 ),
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                b.statusLabelKey == 'payment_pending'
+                    ? 'Payment pending — checkout started but not finished. You can cancel this booking.'
+                    : 'Awaiting payment — complete Pay now or cancel if you no longer need this session.',
+                style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                textAlign: TextAlign.center,
+              ),
+            ),
           ],
           if (b.canViewGallery) ...[
             const SizedBox(height: 10),

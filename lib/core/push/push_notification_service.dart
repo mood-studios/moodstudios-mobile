@@ -8,9 +8,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../firebase_options.dart';
 import '../network/api_client.dart';
-import '../../screens/bookings/booking_detail_screen.dart';
-import '../../screens/chat/chat_screen.dart';
-import '../../screens/home/home_screen.dart';
+import '../navigation/notification_navigation.dart';
+import '../../models/notification_model.dart';
 import '../../screens/notifications/notifications_screen.dart';
 
 const _channelId = 'mood_studios_alerts';
@@ -166,6 +165,7 @@ class PushNotificationService {
   }
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
+    refreshNotificationBadge();
     final notification = message.notification;
     if (notification == null) return;
 
@@ -209,33 +209,26 @@ class PushNotificationService {
   }
 
   void _navigateFromPushData(Map<String, dynamic> data) {
-    final nav = _navigatorKey?.currentState;
-    if (nav == null) return;
-
     final type = data['type']?.toString() ?? 'general';
     final ref = data['referenceId']?.toString() ?? data['bookingId']?.toString() ?? '';
 
-    switch (type) {
-      case 'message':
-        nav.push(MaterialPageRoute(builder: (_) => const ChatScreen()));
-        return;
-      case 'booking':
-      case 'payment':
-        if (ref.isNotEmpty) {
-          nav.push(
-            MaterialPageRoute(
-              builder: (_) => BookingDetailScreen(bookingId: ref),
-            ),
-          );
-        } else {
-          nav.push(
-            MaterialPageRoute(builder: (_) => const HomeScreen(initialIndex: 3)),
-          );
-        }
-        return;
-      default:
-        _openNotifications();
+    if (type == 'general' || type.isEmpty) {
+      _openNotifications();
+      return;
     }
+
+    navigateFromNotification(
+      AppNotification(
+        id: '',
+        title: '',
+        message: '',
+        type: type,
+        referenceId: ref,
+        isRead: true,
+        createdAt: DateTime.now(),
+      ),
+    );
+    refreshNotificationBadge();
   }
 
   void _openNotifications() {

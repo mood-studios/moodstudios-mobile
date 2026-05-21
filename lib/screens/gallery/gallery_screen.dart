@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/gallery_model.dart';
 import '../../services/gallery_service.dart';
+import 'gallery_photo_viewer_screen.dart';
 
 class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key, required this.bookingId});
@@ -75,6 +76,11 @@ class _GalleryScreenState extends State<GalleryScreen> {
           );
       if (!mounted) return;
       await OpenFilex.open(path);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Photo downloaded')),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
@@ -84,52 +90,15 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
   }
 
-  void _openPhoto(GalleryPhoto photo, int index) {
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4,
-                child: CachedNetworkImage(
-                  imageUrl: photo.url,
-                  fit: BoxFit.contain,
-                  placeholder: (_, __) => const SizedBox(
-                    height: 280,
-                    child: Center(child: CircularProgressIndicator(color: AppColors.purple)),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton.icon(
-                  onPressed: _downloadingPhotoUrl == photo.url
-                      ? null
-                      : () async {
-                          await _downloadPhoto(photo, index);
-                          if (ctx.mounted) Navigator.pop(ctx);
-                        },
-                  icon: const Icon(Icons.download_outlined, color: Colors.white),
-                  label: const Text('Download', style: TextStyle(color: Colors.white)),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Close', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            ),
-          ],
+  void _openPhoto(GalleryAlbum album, int photoIndex) {
+    if (album.photos.isEmpty) return;
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GalleryPhotoViewerScreen(
+          photos: album.photos,
+          initialIndex: photoIndex,
+          onDownload: _downloadPhoto,
         ),
       ),
     );
@@ -190,7 +159,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
                             itemBuilder: (_, pi) {
                               final photo = album.photos[pi];
                               return GestureDetector(
-                                onTap: () => _openPhoto(photo, pi + 1),
+                                onTap: () => _openPhoto(album, pi),
+                                onLongPress: _downloadingPhotoUrl == photo.url
+                                    ? null
+                                    : () => _downloadPhoto(photo, pi + 1),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: Stack(
