@@ -40,6 +40,18 @@ android {
     }
 }
 
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            val fileName = when (variant.buildType) {
+                "release" -> "moodstudios.apk"
+                else -> "moodstudios-${variant.buildType}.apk"
+            }
+            output.outputFileName.set(fileName)
+        }
+    }
+}
+
 flutter {
     source = "../.."
 }
