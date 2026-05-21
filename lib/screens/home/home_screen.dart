@@ -24,7 +24,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static const _navItems = [
     MoodNavItem(icon: Icons.home_outlined, label: 'Home'),
     MoodNavItem(icon: Icons.camera_alt_outlined, label: 'Book'),
@@ -38,12 +38,26 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _index = widget.initialIndex.clamp(0, _navItems.length - 1);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       PushNotifications.syncWhenAuthenticated(context);
       context.read<NotificationBadgeProvider>().refresh();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      context.read<NotificationBadgeProvider>().refresh();
+    }
   }
 
   Future<void> _logout() async {

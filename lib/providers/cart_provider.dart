@@ -74,6 +74,21 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Remove one scheduled unit (same as web checkout remove single session).
+  void removeUnit(String serviceId, int unitIndex) {
+    final index = _lines.indexWhere((l) => l.service.id == serviceId);
+    if (index < 0) return;
+    final line = _lines[index];
+    if (unitIndex < 0 || unitIndex >= line.schedules.length) return;
+    if (line.qty > 1) {
+      line.schedules.removeAt(unitIndex);
+      line.qty -= 1;
+    } else {
+      _lines.removeAt(index);
+    }
+    notifyListeners();
+  }
+
   void setSchedule(String serviceId, int unitIndex, {DateTime? date, TimeSlot? slot}) {
     CartLineItem? line;
     for (final l in _lines) {

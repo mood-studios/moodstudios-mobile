@@ -229,12 +229,37 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
         ? '${line.service.name} — Session ${unitIndex + 1}'
         : line.service.name;
 
+    final cart = context.read<CartProvider>();
+
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          Row(
+            children: [
+              Expanded(
+                child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              ),
+              if (line.qty > 1)
+                TextButton.icon(
+                  onPressed: () {
+                    cart.removeUnit(line.service.id, unitIndex);
+                    setState(() {
+                      _slotsCache.remove(key);
+                      _slotsLoading.remove(key);
+                    });
+                    if (cart.isEmpty && mounted) Navigator.pop(context);
+                  },
+                  icon: const Icon(Icons.close, size: 16),
+                  label: const Text('Remove session'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 8),
           Material(
             color: AppColors.white,
@@ -325,7 +350,13 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
             'Your packages (${cart.unitCount})',
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
           ),
-          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.only(top: 4, bottom: 8),
+            child: Text(
+              'Each package and session needs its own date and time.',
+              style: TextStyle(fontSize: 12, color: AppColors.muted),
+            ),
+          ),
           ...cart.lines.map((line) {
             return Card(
               margin: const EdgeInsets.only(bottom: 12),

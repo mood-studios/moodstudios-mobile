@@ -13,8 +13,11 @@ void navigateFromNotification(AppNotification notification) {
   final context = appNavigatorKey.currentContext;
   if (context == null) return;
 
-  switch (notification.type) {
+  final type = notification.type.toLowerCase();
+
+  switch (type) {
     case 'message':
+    case 'chat':
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => const ChatScreen()),
       );
@@ -47,6 +50,13 @@ void navigateFromNotification(AppNotification notification) {
       }
       return;
     default:
+      if (notification.referenceId.isNotEmpty) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => BookingDetailScreen(bookingId: notification.referenceId),
+          ),
+        );
+      }
       return;
   }
 }

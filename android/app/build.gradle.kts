@@ -1,5 +1,3 @@
-import com.android.build.gradle.internal.api.BaseVariantOutputImpl
-
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -55,15 +53,31 @@ if (googleServicesFile.exists()) {
     apply(plugin = "com.google.gms.google-services")
 }
 
-afterEvaluate {
-    android.applicationVariants.configureEach {
-        val variant = this
-        variant.outputs.configureEach {
-            val output = this as BaseVariantOutputImpl
-            output.outputFileName = when (variant.buildType.name) {
-                "release" -> "moodstudios.apk"
-                else -> "moodstudios-${variant.buildType.name}.apk"
-            }
-        }
+gradle.buildFinished {
+    if (failure != null) return@buildFinished
+    val taskNames = project.gradle.startParameter.taskNames
+    if (taskNames.none { it.contains("assembleRelease", ignoreCase = true) }) {
+        return@buildFinished
+    }
+
+    val flutterApkDir = file("${rootProject.projectDir}/../build/app/outputs/flutter-apk")
+    if (!flutterApkDir.isDirectory) return@buildFinished
+
+    val source = flutterApkDir.listFiles()
+        ?.filter { it.isFile && it.extension.equals("apk", ignoreCase = true) && it.name != "moodstudios.apk" }
+        ?.sortedWith(
+            compareByDescending<File> { it.name.contains("release", ignoreCase = true) }
+                .thenByDescending { it.lastModified() },
+        )
+        ?.firstOrNull()
+        ?: return@buildFinished
+
+    val dest = File(flutterApkDir, "moodstudios.apk")
+    source.copyTo(dest, overwrite = true)
+    logger.lifecycle("Mood Studios release APK also saved as: ${dest.absolutePath}")
+
+    val releaseDir = layout.buildDirectory.dir("outputs/apk/release").get().asFile
+    if (releaseDir.isDirectory) {
+        source.copyTo(File(releaseDir, "moodstudios.apk"), overwrite = true)
     }
 }

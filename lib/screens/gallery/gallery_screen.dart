@@ -1,7 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
+import '../../core/gallery/gallery_save_helper.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/gallery_model.dart';
 import '../../services/gallery_service.dart';
@@ -52,11 +52,10 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
     setState(() => _downloadingAlbumId = album.id);
     try {
-      final path = await context.read<GalleryService>().downloadAlbum(album.id, album.albumName);
+      await context.read<GalleryService>().downloadAlbum(album.id, album.albumName);
       if (!mounted) return;
-      await OpenFilex.open(path);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Album downloaded')),
+        const SnackBar(content: Text('Album ZIP downloaded to your device storage')),
       );
     } catch (e) {
       if (mounted) {
@@ -75,12 +74,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
             name: 'photo-$index',
           );
       if (!mounted) return;
-      await OpenFilex.open(path);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Photo downloaded')),
-        );
-      }
+      await saveImageFileToGallery(context, path);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
@@ -158,11 +152,14 @@ class _GalleryScreenState extends State<GalleryScreen> {
                             itemCount: album.photos.length,
                             itemBuilder: (_, pi) {
                               final photo = album.photos[pi];
-                              return GestureDetector(
+                              return Material(
+                                color: Colors.transparent,
+                                child: InkWell(
                                 onTap: () => _openPhoto(album, pi),
                                 onLongPress: _downloadingPhotoUrl == photo.url
                                     ? null
                                     : () => _downloadPhoto(photo, pi + 1),
+                                borderRadius: BorderRadius.circular(12),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: Stack(
@@ -189,6 +186,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
                                     ],
                                   ),
                                 ),
+                              ),
                               );
                             },
                           ),

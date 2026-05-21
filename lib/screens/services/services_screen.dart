@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/category_model.dart';
@@ -7,7 +6,7 @@ import '../../models/service_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../services/catalog_service.dart';
 import '../../widgets/service_card.dart';
-import '../booking/booking_checkout_screen.dart';
+import '../../widgets/cart_bottom_sheet.dart';
 
 class ServicesScreen extends StatefulWidget {
   const ServicesScreen({super.key, this.embedded = false});
@@ -90,52 +89,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
 
   void _openCartSheet() {
     if (context.read<CartProvider>().isEmpty) return;
-
-    final currency = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
-
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetCtx) => Consumer<CartProvider>(
-        builder: (context, cart, _) {
-          if (cart.isEmpty) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (Navigator.canPop(sheetCtx)) Navigator.pop(sheetCtx);
-            });
-            return const SizedBox.shrink();
-          }
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Your cart', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 12),
-                ...cart.lines.map(
-                  (line) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(line.service.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      '${line.service.duration} min · ${currency.format(line.service.price)}'
-                      '${line.qty > 1 ? ' × ${line.qty}' : ''}',
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
-                      tooltip: 'Remove from cart',
-                      onPressed: () => cart.removeLine(line.service.id),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+    showCartBottomSheet(context);
   }
 
   @override
@@ -258,10 +212,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const BookingCheckoutScreen()),
-                    ),
+                    onPressed: _openCartSheet,
                     child: const Text('Continue'),
                   ),
                 ],

@@ -46,7 +46,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await context.read<NotificationService>().markAsRead(n.id);
     }
     if (!mounted) return;
-    Navigator.pop(context);
+    setState(() {
+      final i = _items.indexWhere((x) => x.id == n.id);
+      if (i >= 0) {
+        _items[i] = AppNotification(
+          id: n.id,
+          title: n.title,
+          message: n.message,
+          type: n.type,
+          referenceId: n.referenceId,
+          isRead: true,
+          createdAt: n.createdAt,
+        );
+      }
+    });
     navigateFromNotification(n);
     refreshNotificationBadge();
   }
