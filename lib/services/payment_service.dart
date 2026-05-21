@@ -7,14 +7,25 @@ class PaymentService {
 
   Future<PaymentSession> startPayment(String bookingId) async {
     final res = await _client.dio.post('/payments', data: {'bookingId': bookingId});
-    final data = res.data['data'] as Map<String, dynamic>;
-    final payment = data['payment'] as Map<String, dynamic>;
+    return _sessionFromResponse(res.data['data'] as Map<String, dynamic>);
+  }
 
+  Future<PaymentSession> startCombinedPayment(List<String> bookingIds) async {
+    final res = await _client.dio.post('/payments/combined', data: {
+      'bookingIds': bookingIds,
+    });
+    return _sessionFromResponse(res.data['data'] as Map<String, dynamic>);
+  }
+
+  PaymentSession _sessionFromResponse(Map<String, dynamic> data) {
+    final payment = data['payment'] as Map<String, dynamic>;
     return PaymentSession(
       paymentId: payment['_id']?.toString() ?? '',
       paymentIntentId: data['paymentIntentId']?.toString(),
       checkoutUrl: data['checkoutUrl']?.toString(),
-      amount: (data['amount'] as num?)?.toDouble() ?? (payment['amount'] as num?)?.toDouble() ?? 0,
+      amount: (data['amount'] as num?)?.toDouble() ??
+          (payment['amount'] as num?)?.toDouble() ??
+          0,
       isTestMode: data['isTestMode'] == true,
       linkError: data['linkError']?.toString(),
     );

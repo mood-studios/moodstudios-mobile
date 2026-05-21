@@ -28,7 +28,13 @@ class _GalleryHubScreenState extends State<GalleryHubScreen> {
     try {
       final list = await context.read<BookingService>().getMyBookings();
       if (mounted) setState(() {
-        _bookings = list.where((b) => b.bookingStatus == 'completed' || b.bookingStatus == 'confirmed').toList();
+        _bookings = list
+            .where(
+              (b) =>
+                  (b.bookingStatus == 'completed' || b.bookingStatus == 'confirmed') &&
+                  b.paymentStatus == 'paid',
+            )
+            .toList();
         _loading = false;
       });
     } catch (_) {

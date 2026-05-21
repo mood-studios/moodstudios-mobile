@@ -21,4 +21,9 @@ class CatalogService {
     final list = res.data['data'] as List;
     return list.map((e) => ServiceModel.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  Future<ServiceModel> getService(String id) async {
+    final res = await _client.dio.get('/services/$id');
+    return ServiceModel.fromJson(res.data['data'] as Map<String, dynamic>);
+  }
 }

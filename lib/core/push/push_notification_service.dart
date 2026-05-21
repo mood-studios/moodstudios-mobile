@@ -8,6 +8,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../firebase_options.dart';
 import '../network/api_client.dart';
+import '../../screens/bookings/booking_detail_screen.dart';
+import '../../screens/chat/chat_screen.dart';
+import '../../screens/home/home_screen.dart';
 import '../../screens/notifications/notifications_screen.dart';
 
 const _channelId = 'mood_studios_alerts';
@@ -182,16 +185,57 @@ class PushNotificationService {
       notification.title,
       notification.body,
       details,
-      payload: message.data['type'],
+      payload: '${message.data['type'] ?? 'general'}|${message.data['referenceId'] ?? ''}',
     );
   }
 
   void _onNotificationTap(NotificationResponse response) {
-    _openNotifications();
+    final payload = response.payload;
+    if (payload != null && payload.contains('|')) {
+      final parts = payload.split('|');
+      _navigateFromPushData({
+        'type': parts[0],
+        'referenceId': parts.length > 1 ? parts[1] : '',
+      });
+    } else if (payload != null && payload.isNotEmpty) {
+      _navigateFromPushData({'type': payload});
+    } else {
+      _openNotifications();
+    }
   }
 
   void _handleOpenedMessage(RemoteMessage message) {
-    _openNotifications();
+    _navigateFromPushData(message.data);
+  }
+
+  void _navigateFromPushData(Map<String, dynamic> data) {
+    final nav = _navigatorKey?.currentState;
+    if (nav == null) return;
+
+    final type = data['type']?.toString() ?? 'general';
+    final ref = data['referenceId']?.toString() ?? data['bookingId']?.toString() ?? '';
+
+    switch (type) {
+      case 'message':
+        nav.push(MaterialPageRoute(builder: (_) => const ChatScreen()));
+        return;
+      case 'booking':
+      case 'payment':
+        if (ref.isNotEmpty) {
+          nav.push(
+            MaterialPageRoute(
+              builder: (_) => BookingDetailScreen(bookingId: ref),
+            ),
+          );
+        } else {
+          nav.push(
+            MaterialPageRoute(builder: (_) => const HomeScreen(initialIndex: 3)),
+          );
+        }
+        return;
+      default:
+        _openNotifications();
+    }
   }
 
   void _openNotifications() {

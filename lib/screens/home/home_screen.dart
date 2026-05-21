@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/push/push_notifications.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_badge_provider.dart';
 import '../../widgets/mood_bottom_nav.dart';
 import '../../widgets/mood_logo.dart';
 import '../auth/login_screen.dart';
@@ -41,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       PushNotifications.syncWhenAuthenticated(context);
+      context.read<NotificationBadgeProvider>().refresh();
     });
   }
 
@@ -93,12 +95,27 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: AppColors.text),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: AppColors.text),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-            ),
+          Consumer<NotificationBadgeProvider>(
+            builder: (context, badge, _) {
+              return IconButton(
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                  );
+                  if (context.mounted) {
+                    context.read<NotificationBadgeProvider>().refresh();
+                  }
+                },
+                icon: Badge(
+                  isLabelVisible: badge.unreadCount > 0,
+                  label: Text(
+                    badge.unreadCount > 99 ? '99+' : '${badge.unreadCount}',
+                  ),
+                  child: const Icon(Icons.notifications_outlined, color: AppColors.text),
+                ),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline, color: AppColors.text),

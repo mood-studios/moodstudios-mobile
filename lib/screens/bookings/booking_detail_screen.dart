@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -21,6 +22,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   BookingModel? _booking;
   bool _loading = true;
   bool _paying = false;
+  bool _cancelling = false;
 
   @override
   void initState() {
@@ -42,6 +44,44 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       }
+    }
+  }
+
+  Future<void> _cancel() async {
+    final b = _booking;
+    if (b == null || !b.canCancel) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel booking?'),
+        content: const Text('This cannot be undone. Your booking will be cancelled.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep booking')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Yes, cancel', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _cancelling = true);
+    try {
+      await context.read<BookingService>().cancelBooking(widget.bookingId);
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        final msg = e is DioException && e.message != null && e.message!.isNotEmpty
+            ? e.message!
+            : e.toString().replaceAll('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
     }
   }
 
@@ -173,15 +213,41 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                 label: Text(_paying ? 'Preparing checkout...' : 'Pay now'),
               ),
             ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => GalleryScreen(bookingId: b.id)),
+          if (b.canCancel) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _cancelling ? null : _cancel,
+                icon: _cancelling
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.cancel_outlined, color: Colors.redAccent),
+                label: Text(
+                  _cancelling ? 'Cancelling…' : 'Cancel booking',
+                  style: const TextStyle(color: Colors.redAccent),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.redAccent),
+                ),
+              ),
             ),
-            icon: const Icon(Icons.photo_library),
-            label: const Text('View gallery'),
-          ),
+          ],
+          if (b.canViewGallery) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => GalleryScreen(bookingId: b.id)),
+              ),
+              icon: const Icon(Icons.photo_library),
+              label: const Text('View gallery'),
+            ),
+          ],
         ],
       ),
     );

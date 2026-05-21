@@ -39,14 +39,29 @@ class BookingService {
   }
 
   Future<List<BookingModel>> getMyBookings() async {
-    final res = await _client.dio.get('/bookings/my');
+    final res = await _client.dio.get(
+      '/bookings/my',
+      queryParameters: {'_': DateTime.now().millisecondsSinceEpoch},
+    );
     final list = res.data['data'] as List;
     return list.map((e) => BookingModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<BookingModel> getBooking(String id) async {
-    final res = await _client.dio.get('/bookings/$id');
+    final res = await _client.dio.get(
+      '/bookings/$id',
+      queryParameters: {'_': DateTime.now().millisecondsSinceEpoch},
+    );
     return BookingModel.fromJson(res.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<BookingModel> cancelBooking(String id) async {
+    final res = await _client.dio.delete('/bookings/$id');
+    final data = res.data;
+    if (data is Map<String, dynamic> && data['data'] != null) {
+      return BookingModel.fromJson(data['data'] as Map<String, dynamic>);
+    }
+    return getBooking(id);
   }
 
   Future<Map<String, dynamic>> createPayment(String bookingId) async {

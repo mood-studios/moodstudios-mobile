@@ -4,8 +4,9 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/service_model.dart';
 import '../../providers/cart_provider.dart';
+import '../../services/catalog_service.dart';
 
-class ServiceDetailScreen extends StatelessWidget {
+class ServiceDetailScreen extends StatefulWidget {
   const ServiceDetailScreen({
     super.key,
     required this.service,
@@ -21,7 +22,41 @@ class ServiceDetailScreen extends StatelessWidget {
   }
 
   @override
+  State<ServiceDetailScreen> createState() => _ServiceDetailScreenState();
+}
+
+class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
+  ServiceModel? _full;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadFull());
+  }
+
+  Future<void> _loadFull() async {
+    try {
+      final full = await context.read<CatalogService>().getService(widget.service.id);
+      if (mounted) {
+        setState(() {
+          _full = full;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _full = widget.service;
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final service = _full ?? widget.service;
     final currency = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
     final cart = context.watch<CartProvider>();
     final inCart = cart.contains(service.id);
@@ -103,7 +138,18 @@ class ServiceDetailScreen extends StatelessWidget {
                       color: AppColors.white,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: _PackageDescription(text: service.description ?? 'No description available.'),
+                    child: _loading
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.purple),
+                              ),
+                            ),
+                          )
+                        : _PackageDescription(text: service.description ?? 'No description available.'),
                   ),
                 ],
               ),
@@ -127,10 +173,10 @@ class ServiceDetailScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    if (!inCart) cart.toggle(service);
+                    cart.add(service);
                     Navigator.pop(context);
                   },
-                  child: Text(inCart ? 'Added to booking ✓' : 'Add to booking'),
+                  child: Text(inCart ? 'Add another session' : 'Add to booking'),
                 ),
               ),
             ),
@@ -177,7 +223,7 @@ class _PackageDescription extends StatelessWidget {
               Expanded(
                 child: Text(
                   bulletText,
-                  style: const TextStyle(fontSize: 14, height: 1.45, color: AppColors.text),
+                  style: const TextStyle(fontSize: 14, height: 1.5, color: AppColors.text),
                 ),
               ),
             ],

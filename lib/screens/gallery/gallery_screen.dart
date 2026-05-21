@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/gallery_model.dart';
@@ -17,6 +18,8 @@ class GalleryScreen extends StatefulWidget {
 class _GalleryScreenState extends State<GalleryScreen> {
   List<GalleryAlbum> _albums = [];
   bool _loading = true;
+  String? _downloadingAlbumId;
+  String? _downloadingPhotoUrl;
 
   @override
   void initState() {
@@ -39,6 +42,99 @@ class _GalleryScreenState extends State<GalleryScreen> {
     }
   }
 
+  Future<void> _downloadAlbum(GalleryAlbum album) async {
+    if (album.photos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This album has no photos to download.')),
+      );
+      return;
+    }
+    setState(() => _downloadingAlbumId = album.id);
+    try {
+      final path = await context.read<GalleryService>().downloadAlbum(album.id, album.albumName);
+      if (!mounted) return;
+      await OpenFilex.open(path);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Album downloaded')),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _downloadingAlbumId = null);
+    }
+  }
+
+  Future<void> _downloadPhoto(GalleryPhoto photo, int index) async {
+    setState(() => _downloadingPhotoUrl = photo.url);
+    try {
+      final path = await context.read<GalleryService>().downloadPhoto(
+            photo.url,
+            name: 'photo-$index',
+          );
+      if (!mounted) return;
+      await OpenFilex.open(path);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _downloadingPhotoUrl = null);
+    }
+  }
+
+  void _openPhoto(GalleryPhoto photo, int index) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4,
+                child: CachedNetworkImage(
+                  imageUrl: photo.url,
+                  fit: BoxFit.contain,
+                  placeholder: (_, __) => const SizedBox(
+                    height: 280,
+                    child: Center(child: CircularProgressIndicator(color: AppColors.purple)),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: _downloadingPhotoUrl == photo.url
+                      ? null
+                      : () async {
+                          await _downloadPhoto(photo, index);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        },
+                  icon: const Icon(Icons.download_outlined, color: Colors.white),
+                  label: const Text('Download', style: TextStyle(color: Colors.white)),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -52,10 +148,32 @@ class _GalleryScreenState extends State<GalleryScreen> {
                   itemCount: _albums.length,
                   itemBuilder: (_, i) {
                     final album = _albums[i];
+                    final downloading = _downloadingAlbumId == album.id;
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(album.albumName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                album.albumName,
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                              ),
+                            ),
+                            if (album.photos.isNotEmpty)
+                              TextButton.icon(
+                                onPressed: downloading ? null : () => _downloadAlbum(album),
+                                icon: downloading
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.download_outlined, size: 18),
+                                label: Text(downloading ? 'Preparing…' : 'Download album'),
+                              ),
+                          ],
+                        ),
                         const SizedBox(height: 8),
                         if (album.photos.isEmpty)
                           const Text('No photos in this album', style: TextStyle(color: AppColors.muted))
@@ -71,12 +189,33 @@ class _GalleryScreenState extends State<GalleryScreen> {
                             itemCount: album.photos.length,
                             itemBuilder: (_, pi) {
                               final photo = album.photos[pi];
-                              return ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: CachedNetworkImage(
-                                  imageUrl: photo.url,
-                                  fit: BoxFit.cover,
-                                  placeholder: (_, __) => Container(color: AppColors.purplePale),
+                              return GestureDetector(
+                                onTap: () => _openPhoto(photo, pi + 1),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      CachedNetworkImage(
+                                        imageUrl: photo.url,
+                                        fit: BoxFit.cover,
+                                        placeholder: (_, __) =>
+                                            Container(color: AppColors.purplePale),
+                                      ),
+                                      const Align(
+                                        alignment: Alignment.bottomRight,
+                                        child: Padding(
+                                          padding: EdgeInsets.all(6),
+                                          child: Icon(
+                                            Icons.zoom_in,
+                                            color: Colors.white,
+                                            size: 20,
+                                            shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               );
                             },

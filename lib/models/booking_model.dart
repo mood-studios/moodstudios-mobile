@@ -45,6 +45,17 @@ class BookingModel {
 
   bool get isPaid => paymentStatus == 'paid';
 
+  /// Pending bookings can be cancelled by the customer (not completed/declined).
+  bool get canCancel => bookingStatus == 'pending';
+
+  /// Gallery is available for confirmed/completed sessions with completed payment.
+  bool get canViewGallery {
+    final paid = paymentStatus == 'paid';
+    final sessionOk =
+        bookingStatus == 'confirmed' || bookingStatus == 'completed';
+    return paid && sessionOk;
+  }
+
   /// Customer-facing status for list badges (payment + session).
   String get statusLabel {
     if (bookingStatus == 'declined') return 'Declined';

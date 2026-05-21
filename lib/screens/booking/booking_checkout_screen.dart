@@ -5,6 +5,8 @@ import '../../core/theme/app_colors.dart';
 import '../../models/time_slot.dart';
 import '../../providers/cart_provider.dart';
 import '../../services/booking_service.dart';
+import '../../services/payment_service.dart';
+import '../bookings/payment_checkout_screen.dart';
 import '../home/home_screen.dart';
 
 class BookingCheckoutScreen extends StatefulWidget {
@@ -15,25 +17,10 @@ class BookingCheckoutScreen extends StatefulWidget {
 }
 
 class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
-  DateTime _date = DateTime.now().add(const Duration(days: 1));
-  TimeSlot? _selectedSlot;
-  List<TimeSlot> _slots = [];
-  bool _loadingSlots = true;
   final _request = TextEditingController();
   bool _submitting = false;
-
-  int get _durationMinutes {
-    final cart = context.read<CartProvider>();
-    if (cart.isEmpty) return 60;
-    final total = cart.items.fold<int>(0, (sum, s) => sum + s.duration);
-    return total > 0 ? total : 60;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadSlots());
-  }
+  final Map<String, List<TimeSlot>> _slotsCache = {};
+  final Map<String, bool> _slotsLoading = {};
 
   @override
   void dispose() {
@@ -41,32 +28,37 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
     super.dispose();
   }
 
-  Future<void> _loadSlots() async {
-    setState(() {
-      _loadingSlots = true;
-      _selectedSlot = null;
-    });
+  String _slotKey(String serviceId, int unitIndex) => '$serviceId-$unitIndex';
+
+  Future<void> _loadSlots(CartLineItem line, int unitIndex) async {
+    final schedule = line.schedules[unitIndex];
+    final date = schedule.date;
+    if (date == null) return;
+
+    final key = _slotKey(line.service.id, unitIndex);
+    setState(() => _slotsLoading[key] = true);
+
     try {
       final slots = await context.read<BookingService>().getAvailability(
-            date: _date,
-            durationMinutes: _durationMinutes,
+            date: date,
+            durationMinutes: line.service.duration > 0 ? line.service.duration : 60,
           );
       if (!mounted) return;
-      TimeSlot? firstAvailable;
-      for (final s in slots) {
-        if (s.available) {
-          firstAvailable = s;
-          break;
-        }
-      }
       setState(() {
-        _slots = slots;
-        _selectedSlot = firstAvailable;
-        _loadingSlots = false;
+        _slotsCache[key] = slots;
+        _slotsLoading[key] = false;
+        if (schedule.slot == null) {
+          for (final s in slots) {
+            if (s.available) {
+              schedule.slot = s;
+              break;
+            }
+          }
+        }
       });
     } catch (e) {
       if (mounted) {
-        setState(() => _loadingSlots = false);
+        setState(() => _slotsLoading[key] = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
         );
@@ -74,156 +66,280 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
     }
   }
 
-  Future<void> _pickDate() async {
+  Future<void> _pickDate(CartLineItem line, int unitIndex) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date,
+      initialDate: line.schedules[unitIndex].date ?? DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
       helpText: 'Select session date',
     );
-    if (picked != null) {
-      setState(() => _date = picked);
-      await _loadSlots();
+    if (picked == null || !mounted) return;
+    final cart = context.read<CartProvider>();
+    cart.setSchedule(line.service.id, unitIndex, date: picked);
+    await _loadSlots(line, unitIndex);
+  }
+
+  bool _validateCart(CartProvider cart) {
+    for (final line in cart.lines) {
+      for (var u = 0; u < line.qty; u++) {
+        final s = line.schedules[u];
+        if (s.date == null || s.slot == null) return false;
+      }
     }
+    return true;
+  }
+
+  bool _hasDuplicateSlot(CartProvider cart) {
+    final seen = <String>{};
+    for (final line in cart.lines) {
+      for (var u = 0; u < line.qty; u++) {
+        final s = line.schedules[u];
+        if (s.date == null || s.slot == null) continue;
+        final dateStr = DateFormat('yyyy-MM-dd').format(s.date!);
+        final key = '$dateStr|${s.slot!.value}';
+        if (seen.contains(key)) return true;
+        seen.add(key);
+      }
+    }
+    return false;
   }
 
   Future<void> _submit() async {
     final cart = context.read<CartProvider>();
     if (cart.isEmpty) return;
-    if (_selectedSlot == null) {
+
+    if (!_validateCart(cart)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an available time slot')),
+        const SnackBar(content: Text('Please select a date and time for every session.')),
+      );
+      return;
+    }
+
+    if (_hasDuplicateSlot(cart)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Each session needs a unique date and time.'),
+        ),
       );
       return;
     }
 
     setState(() => _submitting = true);
     try {
-      await context.read<BookingService>().createBooking(
-            serviceIds: cart.serviceIds,
-            bookingDate: _date,
-            bookingTime: _selectedSlot!.time,
-            specialRequest: _request.text.trim(),
+      final bookingService = context.read<BookingService>();
+      final notes = _request.text.trim();
+      final bookingIds = <String>[];
+
+      for (final line in cart.lines) {
+        for (var u = 0; u < line.qty; u++) {
+          final sched = line.schedules[u];
+          final booking = await bookingService.createBooking(
+            serviceIds: [line.service.id],
+            bookingDate: sched.date!,
+            bookingTime: sched.slot!.time,
+            specialRequest: notes.isEmpty ? null : notes,
           );
-      cart.clear();
+          bookingIds.add(booking.id);
+        }
+      }
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Booking submitted successfully!')),
-      );
-      Navigator.pushAndRemoveUntil(
+
+      final PaymentSession session;
+      if (bookingIds.length == 1) {
+        session = await context.read<PaymentService>().startPayment(bookingIds.first);
+      } else {
+        session = await context.read<PaymentService>().startCombinedPayment(bookingIds);
+      }
+
+      if (!mounted) return;
+
+      final paid = await Navigator.push<bool>(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen(initialIndex: 3)),
-        (_) => false,
+        MaterialPageRoute(
+          builder: (_) => PaymentCheckoutScreen(
+            session: session,
+            onComplete: () {},
+          ),
+        ),
       );
+
+      if (!mounted) return;
+
+      if (paid == true) {
+        cart.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment confirmed! Thank you.')),
+        );
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen(initialIndex: 3)),
+          (_) => false,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bookings saved. Complete payment from My Bookings.'),
+          ),
+        );
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (mounted) {
-        final msg = e.toString().replaceAll('Exception: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-        if (msg.contains('no longer available')) {
-          await _loadSlots();
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        );
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
+  Widget _scheduleBlock(CartLineItem line, int unitIndex) {
+    final schedule = line.schedules[unitIndex];
+    final key = _slotKey(line.service.id, unitIndex);
+    final slots = _slotsCache[key] ?? [];
+    final loading = _slotsLoading[key] == true;
+    final label = line.qty > 1 ? 'Session ${unitIndex + 1}' : 'Schedule';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 8),
+          Material(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(12),
+            child: ListTile(
+              dense: true,
+              leading: const Icon(Icons.calendar_today, color: AppColors.purple, size: 20),
+              title: Text(
+                schedule.date != null
+                    ? DateFormat.yMMMEd().format(schedule.date!)
+                    : 'Pick date',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _pickDate(line, unitIndex),
+            ),
+          ),
+          if (schedule.date != null) ...[
+            const SizedBox(height: 8),
+            if (loading)
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.purple),
+                  ),
+                ),
+              )
+            else if (slots.isEmpty)
+              const Text('No times available — try another date.',
+                  style: TextStyle(fontSize: 12, color: AppColors.muted))
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: slots.map((slot) {
+                  final selected = schedule.slot?.value == slot.value;
+                  return FilterChip(
+                    label: Text(slot.time),
+                    selected: selected,
+                    onSelected: slot.available
+                        ? (v) {
+                            if (v) {
+                              context.read<CartProvider>().setSchedule(
+                                    line.service.id,
+                                    unitIndex,
+                                    slot: slot,
+                                  );
+                              setState(() {});
+                            }
+                          }
+                        : null,
+                    selectedColor: AppColors.purplePale,
+                    checkmarkColor: AppColors.purple,
+                  );
+                }).toList(),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     final currency = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
-    final availableCount = _slots.where((s) => s.available).length;
+
+    if (cart.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(backgroundColor: AppColors.background, title: const Text('Checkout')),
+        body: const Center(child: Text('Your cart is empty.')),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
-        title: const Text('Complete Booking'),
+        title: const Text('Checkout'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Selected services (${cart.count})', style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          ...cart.items.map(
-            (s) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(s.name),
-              subtitle: Text('${s.duration} min'),
-              trailing: Text(currency.format(s.price)),
-            ),
-          ),
-          const Divider(height: 32),
-          const Text('Date & time', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-          const SizedBox(height: 8),
-          Material(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(16),
-            child: ListTile(
-              leading: const Icon(Icons.calendar_today, color: AppColors.purple),
-              title: const Text('Session date'),
-              subtitle: Text(DateFormat.yMMMEd().format(_date)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: _pickDate,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Icon(Icons.access_time, color: AppColors.purple, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                'Session time ($_durationMinutes min block)',
-                style: const TextStyle(fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
           Text(
-            availableCount == 0
-                ? 'No times available this day — try another date.'
-                : 'Tap an available time. Grey slots are already booked.',
-            style: const TextStyle(fontSize: 12, color: AppColors.muted),
+            'Your packages (${cart.unitCount})',
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
           ),
-          const SizedBox(height: 12),
-          if (_loadingSlots)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator(color: AppColors.purple)),
-            )
-          else if (_slots.isEmpty)
-            const Text('No time slots configured for this day.')
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _slots.map((slot) {
-                final selected = _selectedSlot?.value == slot.value;
-                return FilterChip(
-                  label: Text(slot.time),
-                  selected: selected,
-                  onSelected: slot.available
-                      ? (selected) {
-                          setState(() => _selectedSlot = slot);
-                        }
-                      : null,
-                  selectedColor: AppColors.purplePale,
-                  checkmarkColor: AppColors.purple,
-                  backgroundColor: slot.available ? AppColors.white : Colors.grey.shade200,
-                  labelStyle: TextStyle(
-                    color: slot.available
-                        ? (selected ? AppColors.purple : AppColors.text)
-                        : Colors.grey.shade500,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                  side: BorderSide(
-                    color: selected ? AppColors.purple : Colors.grey.shade300,
-                  ),
-                );
-              }).toList(),
-            ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
+          ...cart.lines.map((line) {
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(line.service.name,
+                                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                              Text(
+                                '${line.service.duration} min · ${currency.format(line.service.price)}'
+                                '${line.qty > 1 ? ' × ${line.qty}' : ''}',
+                                style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
+                          onPressed: () {
+                            cart.removeLine(line.service.id);
+                            if (cart.isEmpty) Navigator.pop(context);
+                          },
+                        ),
+                      ],
+                    ),
+                    for (var u = 0; u < line.qty; u++) _scheduleBlock(line, u),
+                  ],
+                ),
+              ),
+            );
+          }),
+          const SizedBox(height: 8),
           TextField(
             controller: _request,
             maxLines: 3,
@@ -247,7 +363,11 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
                 const Text('Total', style: TextStyle(fontWeight: FontWeight.w600)),
                 Text(
                   currency.format(cart.total),
-                  style: const TextStyle(color: AppColors.purple, fontWeight: FontWeight.bold, fontSize: 18),
+                  style: const TextStyle(
+                    color: AppColors.purple,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
                 ),
               ],
             ),
@@ -257,8 +377,8 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: (_submitting || _selectedSlot == null) ? null : _submit,
-              child: Text(_submitting ? 'Submitting...' : 'Confirm Booking'),
+              onPressed: _submitting ? null : _submit,
+              child: Text(_submitting ? 'Processing…' : 'Confirm booking'),
             ),
           ),
         ],

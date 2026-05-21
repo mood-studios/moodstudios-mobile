@@ -5,6 +5,7 @@ import 'core/storage/auth_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/cart_provider.dart';
+import 'providers/notification_badge_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/auth_service.dart';
 import 'services/user_service.dart';
@@ -42,6 +43,9 @@ class MoodStudiosApp extends StatelessWidget {
         ChangeNotifierProvider(create: (ctx) => AuthProvider(ctx.read<AuthService>())),
         ChangeNotifierProvider(create: (ctx) => SettingsProvider(ctx.read<UserService>())),
         ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(
+          create: (ctx) => NotificationBadgeProvider(ctx.read<NotificationService>()),
+        ),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {

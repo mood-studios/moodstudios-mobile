@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/category_model.dart';
@@ -20,8 +21,9 @@ class ServicesScreen extends StatefulWidget {
 class _ServicesScreenState extends State<ServicesScreen> {
   List<CategoryModel> _categories = [];
   List<ServiceModel> _services = [];
-  String? _selectedCategory;
+  String? _selectedCategoryId;
   bool _loading = true;
+  bool _loadingServices = false;
   String? _error;
 
   @override
@@ -43,6 +45,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
         setState(() {
           _categories = cats;
           _services = services;
+          _selectedCategoryId = null;
           _loading = false;
         });
       }
@@ -56,9 +59,83 @@ class _ServicesScreenState extends State<ServicesScreen> {
     }
   }
 
-  List<ServiceModel> get _filtered {
-    if (_selectedCategory == null) return _services;
-    return _services.where((s) => s.categoryId == _selectedCategory).toList();
+  Future<void> _selectCategory(String? categoryId) async {
+    if (_selectedCategoryId == categoryId && !_loadingServices) return;
+
+    setState(() {
+      _selectedCategoryId = categoryId;
+      _loadingServices = true;
+      _error = null;
+    });
+
+    try {
+      final services = await context.read<CatalogService>().getServices(
+            categoryId: categoryId,
+          );
+      if (mounted) {
+        setState(() {
+          _services = services;
+          _loadingServices = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loadingServices = false;
+        });
+      }
+    }
+  }
+
+  void _openCartSheet() {
+    if (context.read<CartProvider>().isEmpty) return;
+
+    final currency = NumberFormat.currency(locale: 'en_PH', symbol: '₱');
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => Consumer<CartProvider>(
+        builder: (context, cart, _) {
+          if (cart.isEmpty) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (Navigator.canPop(sheetCtx)) Navigator.pop(sheetCtx);
+            });
+            return const SizedBox.shrink();
+          }
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Your cart', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                ...cart.lines.map(
+                  (line) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(line.service.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text(
+                      '${line.service.duration} min · ${currency.format(line.service.price)}'
+                      '${line.qty > 1 ? ' × ${line.qty}' : ''}',
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
+                      tooltip: 'Remove from cart',
+                      onPressed: () => cart.removeLine(line.service.id),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -69,17 +146,19 @@ class _ServicesScreenState extends State<ServicesScreen> {
       children: [
         if (_categories.isNotEmpty)
           SizedBox(
-            height: 44,
+            height: 48,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               children: [
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
                     label: const Text('All'),
-                    selected: _selectedCategory == null,
-                    onSelected: (_) => setState(() => _selectedCategory = null),
+                    selected: _selectedCategoryId == null,
+                    onSelected: _loadingServices
+                        ? null
+                        : (_) => _selectCategory(null),
                     selectedColor: AppColors.purplePale,
                   ),
                 ),
@@ -88,8 +167,10 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     padding: const EdgeInsets.only(right: 8),
                     child: FilterChip(
                       label: Text(c.name),
-                      selected: _selectedCategory == c.id,
-                      onSelected: (_) => setState(() => _selectedCategory = c.id),
+                      selected: _selectedCategoryId == c.id,
+                      onSelected: _loadingServices
+                          ? null
+                          : (_) => _selectCategory(c.id),
                       selectedColor: AppColors.purplePale,
                     ),
                   ),
@@ -100,22 +181,54 @@ class _ServicesScreenState extends State<ServicesScreen> {
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator(color: AppColors.purple))
-              : _error != null
+              : _error != null && _services.isEmpty
                   ? Center(child: Text(_error!, textAlign: TextAlign.center))
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _filtered.length,
-                        itemBuilder: (_, i) {
-                          final s = _filtered[i];
-                          return ServiceCard(
-                            service: s,
-                            selected: cart.contains(s.id),
-                            onToggle: () => cart.toggle(s),
-                          );
-                        },
-                      ),
+                  : Stack(
+                      children: [
+                        RefreshIndicator(
+                          onRefresh: () async {
+                            await _load();
+                            if (_selectedCategoryId != null) {
+                              await _selectCategory(_selectedCategoryId);
+                            }
+                          },
+                          child: _services.isEmpty
+                              ? ListView(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  children: const [
+                                    SizedBox(height: 80),
+                                    Center(
+                                      child: Text(
+                                        'No packages in this category.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: AppColors.muted),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : ListView.builder(
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: _services.length,
+                                  itemBuilder: (_, i) {
+                                    final s = _services[i];
+                                    return ServiceCard(
+                                      service: s,
+                                      selected: cart.contains(s.id),
+                                      qty: cart.qtyOf(s.id),
+                                      onAdd: () => cart.add(s),
+                                      onRemoveOne: () => cart.removeOne(s.id),
+                                    );
+                                  },
+                                ),
+                        ),
+                        if (_loadingServices)
+                          const Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: LinearProgressIndicator(color: AppColors.purple, minHeight: 2),
+                          ),
+                      ],
                     ),
         ),
         if (cart.count > 0)
@@ -129,13 +242,20 @@ class _ServicesScreenState extends State<ServicesScreen> {
               top: false,
               child: Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: AppColors.purple,
-                    child: Text('${cart.count}', style: const TextStyle(color: Colors.white)),
+                  InkWell(
+                    onTap: _openCartSheet,
+                    borderRadius: BorderRadius.circular(24),
+                    child: CircleAvatar(
+                      backgroundColor: AppColors.purple,
+                      child: Text('${cart.unitCount}', style: const TextStyle(color: Colors.white)),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text('₱${cart.total.toStringAsFixed(0)} total', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    child: InkWell(
+                      onTap: _openCartSheet,
+                      child: Text('₱${cart.total.toStringAsFixed(0)} total · Tap to review', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    ),
                   ),
                   ElevatedButton(
                     onPressed: () => Navigator.push(
