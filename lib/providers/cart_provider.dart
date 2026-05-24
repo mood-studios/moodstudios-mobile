@@ -113,6 +113,13 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void importLines(List<CartLineItem> lines) {
+    _lines
+      ..clear()
+      ..addAll(lines);
+    notifyListeners();
+  }
+
   /// @deprecated Use [lines] — kept for gradual migration.
   List<ServiceModel> get items {
     final out = <ServiceModel>[];

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
+import '../providers/booking_draft_provider.dart';
+import '../providers/cart_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/mood_logo.dart';
 import 'auth/login_screen.dart';
@@ -33,6 +35,12 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
       if (auth.user != null) {
         context.read<SettingsProvider>().applyFromUser(auth.user!.preferences);
+      }
+      if (auth.isAuthenticated && auth.user != null) {
+        final cart = context.read<CartProvider>();
+        final draft = context.read<BookingDraftProvider>();
+        draft.bindCart(cart);
+        await draft.restoreForUser(auth.user!.id);
       }
       authenticated = auth.isAuthenticated;
     } catch (e, st) {

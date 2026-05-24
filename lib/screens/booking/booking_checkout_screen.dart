@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/time_slot.dart';
+import '../../providers/booking_draft_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../services/booking_service.dart';
 import '../../services/payment_service.dart';
@@ -27,8 +28,26 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    final draft = context.read<BookingDraftProvider>();
+    draft.bindCart(context.read<CartProvider>());
+    if (draft.notes.isNotEmpty) {
+      _request.text = draft.notes;
+    }
+    _request.addListener(_onNotesChanged);
     _loadScheduleRules();
     WidgetsBinding.instance.addPostFrameCallback((_) => _preloadSlots());
+  }
+
+  void _onNotesChanged() {
+    context.read<BookingDraftProvider>().setNotes(_request.text);
+  }
+
+  @override
+  void dispose() {
+    _request.removeListener(_onNotesChanged);
+    context.read<BookingDraftProvider>().syncNow();
+    _request.dispose();
+    super.dispose();
   }
 
   Future<void> _loadScheduleRules() async {
@@ -63,12 +82,6 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
       return 'The studio is closed on this day.';
     }
     return null;
-  }
-
-  @override
-  void dispose() {
-    _request.dispose();
-    super.dispose();
   }
 
   void _preloadSlots() {
@@ -222,12 +235,21 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
 
       if (!mounted) return;
 
+      final draft = context.read<BookingDraftProvider>();
+      await draft.saveCheckoutProgress(
+        bookingIds: bookingIds,
+        totalAmount: cart.total,
+        session: session,
+      );
+
       final paid = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
           builder: (_) => PaymentCheckoutScreen(
             session: session,
-            onComplete: () {},
+            onComplete: () async {
+              await draft.clearDraft();
+            },
           ),
         ),
       );
@@ -236,6 +258,7 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
 
       if (paid == true) {
         cart.clear();
+        await draft.clearDraft();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Payment confirmed! Thank you.')),
         );

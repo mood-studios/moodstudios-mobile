@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/push/push_notifications.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/booking_draft_provider.dart';
+import '../../providers/cart_provider.dart';
 import '../../providers/notification_badge_provider.dart';
 import '../../widgets/mood_bottom_nav.dart';
 import '../../widgets/mood_logo.dart';
@@ -44,6 +48,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       PushNotifications.syncWhenAuthenticated(context);
       context.read<NotificationBadgeProvider>().refresh();
+      final auth = context.read<AuthProvider>();
+      if (auth.isAuthenticated && auth.user != null) {
+        final draft = context.read<BookingDraftProvider>();
+        draft.bindCart(context.read<CartProvider>());
+        unawaited(draft.restoreForUser(auth.user!.id));
+      }
     });
   }
 
@@ -72,6 +82,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
     );
     if (confirm == true && mounted) {
+      context.read<CartProvider>().clear();
+      context.read<BookingDraftProvider>().onLogout();
       await context.read<AuthProvider>().logout();
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(

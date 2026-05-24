@@ -14,8 +14,10 @@ import 'services/payment_service.dart';
 import 'services/catalog_service.dart';
 import 'services/chat_service.dart';
 import 'services/gallery_service.dart';
+import 'services/booking_draft_service.dart';
 import 'services/notification_service.dart';
 import 'core/push/push_notification_service.dart';
+import 'providers/booking_draft_provider.dart';
 import 'screens/splash_screen.dart';
 
 final appNavigatorKey = GlobalKey<NavigatorState>();
@@ -34,6 +36,7 @@ class MoodStudiosApp extends StatelessWidget {
         Provider<ApiClient>.value(value: apiClient),
         Provider<AuthService>(create: (_) => AuthService(apiClient, storage)),
         Provider<CatalogService>(create: (_) => CatalogService(apiClient)),
+        Provider<BookingDraftService>(create: (_) => BookingDraftService(apiClient)),
         Provider<BookingService>(create: (_) => BookingService(apiClient)),
         Provider<PaymentService>(create: (_) => PaymentService(apiClient)),
         Provider<GalleryService>(create: (_) => GalleryService(apiClient)),
@@ -43,6 +46,7 @@ class MoodStudiosApp extends StatelessWidget {
         ChangeNotifierProvider(create: (ctx) => AuthProvider(ctx.read<AuthService>())),
         ChangeNotifierProvider(create: (ctx) => SettingsProvider(ctx.read<UserService>())),
         ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (ctx) => BookingDraftProvider(ctx.read<BookingDraftService>())),
         ChangeNotifierProvider(
           create: (ctx) => NotificationBadgeProvider(ctx.read<NotificationService>()),
         ),

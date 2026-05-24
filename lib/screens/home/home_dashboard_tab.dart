@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/dashboard_card.dart';
+import '../../widgets/resume_draft_banner.dart';
 
 class HomeDashboardTab extends StatelessWidget {
   const HomeDashboardTab({
@@ -43,6 +44,7 @@ class HomeDashboardTab extends StatelessWidget {
               style: TextStyle(fontSize: 14, color: AppColors.muted.withValues(alpha: 0.9)),
             ),
           ),
+          const ResumeDraftBanner(),
           SizedBox(
             height: 118,
             child: ListView(
