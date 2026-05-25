@@ -73,7 +73,9 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'This permanently deletes your account and cannot be undone. Enter your password to confirm.',
+              'Your account will be deactivated and you will be signed out. '
+              'Bookings and messages stay in our records. '
+              'Contact the studio if you change your mind. Enter your password to confirm.',
             ),
             const SizedBox(height: 16),
             TextField(
