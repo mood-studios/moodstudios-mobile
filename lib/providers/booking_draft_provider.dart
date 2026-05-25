@@ -118,39 +118,61 @@ class BookingDraftProvider extends ChangeNotifier {
     final local = await _service.loadLocal(userId);
     final localTs = await _service.localTimestamp(userId);
     final remoteTs = remote?.updatedAt?.millisecondsSinceEpoch ?? 0;
-    final localSnapshot = _buildSnapshot();
-    final localHasContent = localSnapshot.hasContent;
 
     BookingDraftSnapshot? chosen;
-
-    if (remote != null && remote.hasContent) {
-      if (!localHasContent && localTs >= remoteTs) {
-        await clearDraft();
-        _sessionRestored = true;
-        return;
-      }
-      if (remoteTs >= localTs || !localHasContent) {
-        chosen = remote;
-      } else if (local != null && local.hasContent) {
-        chosen = local;
-      }
+    if (remote != null && remote.hasContent && local != null && local.hasContent) {
+      chosen = remoteTs >= localTs ? remote : local;
+    } else if (remote != null && remote.hasContent) {
+      chosen = remote;
     } else if (local != null && local.hasContent) {
       chosen = local;
     }
 
     if (chosen != null && chosen.hasContent) {
       _applySnapshot(chosen);
-      if (remoteTs < localTs && localHasContent) {
+      if (chosen == local && (remote == null || !remote.hasContent || localTs > remoteTs)) {
         await syncNow();
       }
-    } else if (localHasContent) {
-      await syncNow();
     } else {
       _resumeInfo = null;
     }
 
     _sessionRestored = true;
     notifyListeners();
+  }
+
+  /// Re-fetch the latest draft from the server and apply it if it's newer than
+  /// what we have locally. Used when the app resumes or the home tab opens so
+  /// changes made on the website show up without re-logging in.
+  Future<void> refreshFromServer() async {
+    final userId = _userId;
+    if (userId == null || _syncing) return;
+
+    BookingDraftSnapshot? remote;
+    try {
+      remote = await _service.fetchRemote();
+    } catch (e) {
+      if (kDebugMode) debugPrint('[BookingDraft] refresh failed: $e');
+      return;
+    }
+
+    final localTs = await _service.localTimestamp(userId);
+    final remoteTs = remote?.updatedAt?.millisecondsSinceEpoch ?? 0;
+    final localSnapshot = _buildSnapshot();
+
+    if (remote == null || !remote.hasContent) {
+      if (!localSnapshot.hasContent && _resumeInfo != null) {
+        _resumeInfo = null;
+        notifyListeners();
+      }
+      return;
+    }
+
+    if (remoteTs > localTs || !localSnapshot.hasContent) {
+      _applySnapshot(remote);
+      await _service.saveLocal(userId, remote);
+      notifyListeners();
+    }
   }
 
   void _applySnapshot(BookingDraftSnapshot snapshot) {

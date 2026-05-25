@@ -67,6 +67,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
       context.read<NotificationBadgeProvider>().refresh();
+      final auth = context.read<AuthProvider>();
+      if (auth.isAuthenticated && auth.user != null) {
+        unawaited(context.read<BookingDraftProvider>().refreshFromServer());
+      }
     }
   }
 
@@ -94,7 +98,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  void _goTo(int index) => setState(() => _index = index);
+  void _goTo(int index) {
+    setState(() => _index = index);
+    if (index == 0) {
+      final auth = context.read<AuthProvider>();
+      if (auth.isAuthenticated && auth.user != null) {
+        unawaited(context.read<BookingDraftProvider>().refreshFromServer());
+      }
+    }
+  }
 
   Widget _navPad(Widget child) => Padding(
         padding: const EdgeInsets.only(bottom: 88),
