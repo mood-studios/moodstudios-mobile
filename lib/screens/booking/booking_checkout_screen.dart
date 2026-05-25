@@ -111,20 +111,24 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
             durationMinutes: line.service.duration > 0 ? line.service.duration : 60,
           );
       if (!mounted) return;
-      TimeSlot? firstAvailable;
-      for (final s in slots) {
-        if (s.available) {
-          firstAvailable = s;
-          break;
+
+      final available = slots.where((s) => s.available).toList();
+      final cart = context.read<CartProvider>();
+      final current = schedule.slot;
+
+      if (current != null && !available.any((s) => s.value == current.value)) {
+        cart.clearSlot(line.service.id, unitIndex);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Previously selected time is no longer available.'),
+            ),
+          );
         }
+      } else if (current == null && available.isNotEmpty) {
+        cart.setSchedule(line.service.id, unitIndex, slot: available.first);
       }
-      if (schedule.slot == null && firstAvailable != null) {
-        context.read<CartProvider>().setSchedule(
-              line.service.id,
-              unitIndex,
-              slot: firstAvailable,
-            );
-      }
+
       if (!mounted) return;
       setState(() {
         _slotsCache[key] = slots;
@@ -290,6 +294,7 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
     final schedule = line.schedules[unitIndex];
     final key = _slotKey(line.service.id, unitIndex);
     final slots = _slotsCache[key] ?? [];
+    final availableSlots = slots.where((slot) => slot.available).toList();
     final loading = _slotsLoading[key] == true;
     final label = line.qty > 1
         ? '${line.service.name} — Session ${unitIndex + 1}'
@@ -355,35 +360,39 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
                   ),
                 ),
               )
-            else if (slots.isEmpty)
+            else if (availableSlots.isEmpty)
               const Text('No times available — try another date.',
                   style: TextStyle(fontSize: 12, color: AppColors.muted))
-            else
+            else ...[
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: slots.where((slot) => slot.available).map((slot) {
+                children: availableSlots.map((slot) {
                   final selected = schedule.slot?.value == slot.value;
                   return FilterChip(
                     label: Text(slot.time),
                     selected: selected,
-                    onSelected: slot.available
-                        ? (v) {
-                            if (v) {
-                              context.read<CartProvider>().setSchedule(
-                                    line.service.id,
-                                    unitIndex,
-                                    slot: slot,
-                                  );
-                              setState(() {});
-                            }
-                          }
-                        : null,
+                    onSelected: (v) {
+                      if (v) {
+                        context.read<CartProvider>().setSchedule(
+                              line.service.id,
+                              unitIndex,
+                              slot: slot,
+                            );
+                        setState(() {});
+                      }
+                    },
                     selectedColor: AppColors.purplePale,
                     checkmarkColor: AppColors.purple,
                   );
                 }).toList(),
               ),
+              const SizedBox(height: 6),
+              Text(
+                '${availableSlots.length} available time${availableSlots.length == 1 ? '' : 's'} on this date',
+                style: const TextStyle(fontSize: 11, color: AppColors.muted),
+              ),
+            ],
           ],
         ],
       ),
