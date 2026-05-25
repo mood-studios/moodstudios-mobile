@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/mood_logo.dart';
 import '../home/home_screen.dart';
+import 'forgot_password_screen.dart';
 import 'otp_screen.dart';
 import 'register_screen.dart';
 
@@ -98,7 +99,39 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           validator: (v) => v != null && v.length >= 6 ? null : 'Min 6 characters',
                         ),
-                        const SizedBox(height: 24),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: auth.loading
+                                ? null
+                                : () async {
+                                    final result = await Navigator.push<String>(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ForgotPasswordScreen(
+                                          initialEmail: _email.text.trim().isEmpty
+                                              ? null
+                                              : _email.text.trim(),
+                                        ),
+                                      ),
+                                    );
+                                    if (!mounted) return;
+                                    if (result != null && result.isNotEmpty) {
+                                      setState(() => _email.text = result);
+                                    }
+                                  },
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 32),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text(
+                              'Forgot password?',
+                              style: TextStyle(color: AppColors.purple),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(

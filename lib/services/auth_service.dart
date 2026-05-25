@@ -79,6 +79,22 @@ class AuthService {
     await _client.dio.post('/auth/resend-otp', data: {'email': email});
   }
 
+  Future<void> sendForgotPasswordOtp(String email) async {
+    await _client.dio.post('/auth/forgot-password/send-otp', data: {'email': email});
+  }
+
+  Future<void> resetForgotPassword({
+    required String email,
+    required String otp,
+    required String password,
+  }) async {
+    await _client.dio.post('/auth/forgot-password/reset', data: {
+      'email': email,
+      'otp': otp,
+      'password': password,
+    });
+  }
+
   Future<UserModel> fetchProfile() async {
     final res = await _client.dio.get('/users/profile');
     final user = UserModel.fromJson(res.data['data'] as Map<String, dynamic>);

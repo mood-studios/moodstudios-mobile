@@ -83,6 +83,26 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
+  Future<bool> sendForgotPasswordOtp(String email) async {
+    return _run(() async {
+      await _authService.sendForgotPasswordOtp(email);
+    });
+  }
+
+  Future<bool> resetForgotPassword({
+    required String email,
+    required String otp,
+    required String password,
+  }) async {
+    return _run(() async {
+      await _authService.resetForgotPassword(
+        email: email,
+        otp: otp,
+        password: password,
+      );
+    });
+  }
+
   Future<bool> updateProfile({String? name, String? phone}) async {
     return _run(() async {
       _user = await _authService.updateProfile(name: name, phone: phone);

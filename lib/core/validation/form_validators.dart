@@ -25,4 +25,18 @@ class FormValidators {
     if (v.length != 11) return 'Phone number must be exactly 11 digits.';
     return null;
   }
+
+  /// Matches backend rules: at least 8 chars, one uppercase letter,
+  /// and one special (non-alphanumeric) character.
+  static String? validatePasswordStrength(String? value) {
+    final v = value ?? '';
+    if (v.length < 8) return 'Password must be at least 8 characters.';
+    if (!RegExp(r'[A-Z]').hasMatch(v)) {
+      return 'Password must include at least one uppercase letter.';
+    }
+    if (!RegExp(r'[^A-Za-z0-9]').hasMatch(v)) {
+      return 'Password must include at least one special character.';
+    }
+    return null;
+  }
 }
