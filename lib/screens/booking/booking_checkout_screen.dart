@@ -22,6 +22,7 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
   bool _submitting = false;
   final Map<String, List<TimeSlot>> _slotsCache = {};
   final Map<String, bool> _slotsLoading = {};
+  final Map<String, String> _slotsError = {};
   Set<String> _blockedDateKeys = {};
   List<int> _closedWeekdays = [];
 
@@ -103,7 +104,10 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
     if (date == null) return;
 
     final key = _slotKey(line.service.id, unitIndex);
-    setState(() => _slotsLoading[key] = true);
+    setState(() {
+      _slotsLoading[key] = true;
+      _slotsError.remove(key);
+    });
 
     try {
       final slots = await context.read<BookingService>().getAvailability(
@@ -116,15 +120,10 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
       final cart = context.read<CartProvider>();
       final current = schedule.slot;
 
+      String? noticeMessage;
       if (current != null && !available.any((s) => s.value == current.value)) {
         cart.clearSlot(line.service.id, unitIndex);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Previously selected time is no longer available.'),
-            ),
-          );
-        }
+        noticeMessage = 'Previously selected time is no longer available — pick another.';
       } else if (current == null && available.isNotEmpty) {
         cart.setSchedule(line.service.id, unitIndex, slot: available.first);
       }
@@ -133,32 +132,98 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
       setState(() {
         _slotsCache[key] = slots;
         _slotsLoading[key] = false;
+        if (noticeMessage != null) {
+          _slotsError[key] = noticeMessage;
+        } else {
+          _slotsError.remove(key);
+        }
       });
     } catch (e) {
-      if (mounted) {
-        setState(() => _slotsLoading[key] = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-        );
+      if (!mounted) return;
+      final message = e.toString().replaceAll('Exception: ', '');
+      final isBlocked = _isBlockedDateError(message);
+      final cart = context.read<CartProvider>();
+      if (isBlocked) {
+        cart.clearSlot(line.service.id, unitIndex);
+        cart.clearDate(line.service.id, unitIndex);
       }
+      setState(() {
+        _slotsLoading[key] = false;
+        _slotsCache.remove(key);
+        _slotsError[key] = isBlocked
+            ? 'This date is no longer available. Please pick another date below.'
+            : message;
+      });
     }
   }
 
+  bool _isBlockedDateError(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('blocked') ||
+        lower.contains('not available for booking') ||
+        lower.contains('studio is closed');
+  }
+
+  DateTime _safeInitialDate(DateTime? candidate, DateTime firstDate, DateTime lastDate) {
+    bool isInRange(DateTime d) => !d.isBefore(firstDate) && !d.isAfter(lastDate);
+    if (candidate != null && isInRange(candidate) && _isDateSelectable(candidate)) {
+      return candidate;
+    }
+    var probe = firstDate;
+    while (!probe.isAfter(lastDate)) {
+      if (_isDateSelectable(probe)) return probe;
+      probe = probe.add(const Duration(days: 1));
+    }
+    return firstDate;
+  }
+
   Future<void> _pickDate(CartLineItem line, int unitIndex) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: line.schedules[unitIndex].date ?? DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 90)),
-      helpText: 'Date — ${line.service.name}',
-      selectableDayPredicate: _isDateSelectable,
-    );
+    final key = _slotKey(line.service.id, unitIndex);
+
+    await _loadScheduleRules();
+    if (!mounted) return;
+
+    final firstDate = DateTime.now();
+    final lastDate = DateTime.now().add(const Duration(days: 90));
+    final candidate = line.schedules[unitIndex].date;
+    final initialDate = _safeInitialDate(candidate, firstDate, lastDate);
+
+    if (candidate != null && !_isDateSelectable(candidate)) {
+      final msg = _dateUnavailableMessage(candidate) ??
+          'This date is no longer available. Please pick another date below.';
+      final cart = context.read<CartProvider>();
+      cart.clearDate(line.service.id, unitIndex);
+      setState(() {
+        _slotsCache.remove(key);
+        _slotsError[key] = msg;
+      });
+    }
+
+    DateTime? picked;
+    try {
+      picked = await showDatePicker(
+        context: context,
+        initialDate: initialDate,
+        firstDate: firstDate,
+        lastDate: lastDate,
+        helpText: 'Date — ${line.service.name}',
+        selectableDayPredicate: _isDateSelectable,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _slotsError[key] = 'Could not open the date picker. Please try again.';
+      });
+      return;
+    }
+
     if (picked == null || !mounted) return;
     final blockedMsg = _dateUnavailableMessage(picked);
     if (blockedMsg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(blockedMsg)));
+      setState(() => _slotsError[key] = blockedMsg);
       return;
     }
+    setState(() => _slotsError.remove(key));
     final cart = context.read<CartProvider>();
     cart.setSchedule(line.service.id, unitIndex, date: picked);
     await _loadSlots(line, unitIndex);
@@ -296,6 +361,7 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
     final slots = _slotsCache[key] ?? [];
     final availableSlots = slots.where((slot) => slot.available).toList();
     final loading = _slotsLoading[key] == true;
+    final errorMessage = _slotsError[key];
     final label = line.qty > 1
         ? '${line.service.name} — Session ${unitIndex + 1}'
         : line.service.name;
@@ -319,6 +385,7 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
                     setState(() {
                       _slotsCache.remove(key);
                       _slotsLoading.remove(key);
+                      _slotsError.remove(key);
                     });
                     if (cart.isEmpty && mounted) Navigator.pop(context);
                   },
@@ -347,6 +414,29 @@ class _BookingCheckoutScreenState extends State<BookingCheckoutScreen> {
               onTap: () => _pickDate(line, unitIndex),
             ),
           ),
+          if (errorMessage != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, size: 18, color: Colors.red.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      errorMessage,
+                      style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (schedule.date != null) ...[
             const SizedBox(height: 8),
             if (loading)

@@ -118,6 +118,17 @@ class CartProvider extends ChangeNotifier {
     }
   }
 
+  void clearDate(String serviceId, int unitIndex) {
+    for (final line in _lines) {
+      if (line.service.id != serviceId) continue;
+      if (unitIndex < 0 || unitIndex >= line.schedules.length) return;
+      line.schedules[unitIndex].date = null;
+      line.schedules[unitIndex].slot = null;
+      notifyListeners();
+      return;
+    }
+  }
+
   void clear() {
     _lines.clear();
     notifyListeners();
